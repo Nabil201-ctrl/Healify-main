@@ -191,8 +191,18 @@ async function processAIRequest(message, userId, sessionId) {
         };
     }
 
-    // 5. Generate Response via medical-grade AI provider (Infermedica -> OpenAI -> fallback)
-    const aiOutput = await generateMedicalResponse(message, userContext?.data);
+    // 5. Fetch conversation history for context
+    const conversationHistory = await ChatMessage.find({ sessionId })
+        .sort({ timestamp: -1 })
+        .limit(10)
+        .lean();
+
+    // Reverse to get chronological order
+    conversationHistory.reverse();
+    console.log(`Loaded ${conversationHistory.length} previous messages for context`);
+
+    // 6. Generate Response via medical-grade AI provider (Infermedica -> OpenAI -> fallback)
+    const aiOutput = await generateMedicalResponse(message, userContext?.data, conversationHistory);
 
     const needsDoctorReview = aiOutput.needsDoctorReview || aiOutput.confidence < 0.7;
 

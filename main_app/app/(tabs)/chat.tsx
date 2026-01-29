@@ -6,8 +6,23 @@ import { toggleChatBookmark } from '../../services/ChatService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import tw from 'twrnc';
 
-// API Configuration
-const API_URL = 'http://localhost:3000';
+// API Configuration - uses environment variable with fallback
+const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+
+// Quick suggestion topics for empty chat
+const QUICK_SUGGESTIONS = [
+	{ id: 'symptoms', label: '🩺 Track Symptoms', message: "I'd like to track some symptoms I've been experiencing" },
+	{ id: 'sleep', label: '😴 Sleep Help', message: "I've been having trouble sleeping lately" },
+	{ id: 'stress', label: '🧘 Stress Relief', message: 'I feel stressed and need some relaxation tips' },
+	{ id: 'nutrition', label: '🥗 Nutrition Tips', message: 'Can you give me some healthy eating advice?' },
+	{ id: 'fitness', label: '🏃 Fitness Guide', message: 'I want to start exercising more regularly' },
+];
+
+type QuickSuggestion = {
+	id: string;
+	label: string;
+	message: string;
+};
 
 type Message = {
 	id: string;
@@ -50,7 +65,14 @@ export default function ChatScreen() {
 	const [isTyping, setIsTyping] = useState(false);
 	const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 	const [isBookmarked, setIsBookmarked] = useState(false);
+	const [showSuggestions, setShowSuggestions] = useState(true);
 	const flatListRef = useRef<FlatList>(null);
+
+	// Handle quick suggestion tap
+	const handleQuickSuggestion = (suggestion: QuickSuggestion) => {
+		setInput(suggestion.message);
+		setShowSuggestions(false);
+	};
 
 	// Load History on Mount
 	useEffect(() => {

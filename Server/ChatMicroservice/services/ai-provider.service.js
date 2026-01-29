@@ -53,24 +53,61 @@ async function callInfermedica(message, userContext) {
     }
 }
 
-async function callOpenAI(message, userContext) {
+async function callOpenAI(message, userContext, conversationHistory = []) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return null;
 
-    const systemPrompt = [
-        'You are Healify Assistant, a cautious medical guide.',
-        'Provide concise, empathetic responses in under 120 words.',
-        'Never give definitive diagnoses; emphasize next steps and safety.',
-        'If symptoms are concerning, advise seeing a clinician and offer red-flag warnings.',
-        'Use the provided user context when available.',
-        'ALWAYS include a medical disclaimer at the end of your response.'
-    ].join(' ');
+    // Build health profile section if available
+    const healthProfile = userContext ? buildHealthProfile(userContext) : 'No health profile available';
 
-    const contextSnippet = userContext ? JSON.stringify(userContext).slice(0, 400) : 'No context';
+    // Detect query type for specialized responses
+    const queryType = detectQueryType(message);
+
+    const systemPrompt = `You are Healify Assistant, an empathetic and knowledgeable health companion.
+
+CORE GUIDELINES:
+- Be warm, supportive, and conversational while maintaining professionalism
+- Provide actionable, practical health guidance
+- Never diagnose conditions - guide users toward appropriate care
+- Use simple language, avoid medical jargon
+- Keep responses concise (under 150 words) but helpful
+- Include relevant safety warnings when appropriate
+- Remember context from previous messages in this conversation
+
+RESPONSE FORMAT:
+- Start with acknowledgment of user's concern
+- Provide clear, structured guidance with bullet points when helpful
+- End with a supportive next step or question
+- Always include the medical disclaimer
+
+USER HEALTH PROFILE:
+${healthProfile}
+
+QUERY TYPE: ${queryType}
+${getQueryTypeGuidance(queryType)}`;
+
+    // Build conversation messages
+    const messages = [
+        { role: 'system', content: systemPrompt }
+    ];
+
+    // Add conversation history (last 6 messages for context)
+    if (conversationHistory && conversationHistory.length > 0) {
+        const recentHistory = conversationHistory.slice(-6);
+        for (const msg of recentHistory) {
+            messages.push({
+                role: msg.author === 'user' ? 'user' : 'assistant',
+                content: msg.text
+            });
+        }
+    }
+
+    // Add current message
+    messages.push({ role: 'user', content: message });
 
     try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+        const timeout = setTimeout(() => controller.abort(), 30000);
 
         const resp = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -80,11 +117,9 @@ async function callOpenAI(message, userContext) {
             },
             body: JSON.stringify({
                 model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-                temperature: 0.4,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: `User message: ${message}\nContext: ${contextSnippet}` }
-                ]
+                temperature: 0.5,
+                max_tokens: 400,
+                messages
             }),
             signal: controller.signal
         });
@@ -100,22 +135,22 @@ async function callOpenAI(message, userContext) {
         let text = data?.choices?.[0]?.message?.content?.trim();
 
         // Ensure medical disclaimer is present
-        if (text && !text.includes('not a doctor') && !text.includes('medical professional')) {
-            text += '\n\n⚠️ I am an AI assistant, not a doctor. Please consult a healthcare professional for medical advice.';
+        if (text && !text.includes('not a doctor') && !text.includes('medical professional') && !text.includes('healthcare provider')) {
+            text += '\n\n⚠️ *I\'m an AI assistant, not a doctor. Please consult a healthcare professional for medical advice.*';
         }
 
         return {
             text: text || 'I want to make sure I guide you correctly. Could you share a bit more detail?',
             confidence: 0.85,
             source: 'openai',
-            metadata: { model: data?.model, usage: data?.usage }
+            metadata: { model: data?.model, usage: data?.usage, queryType }
         };
     } catch (err) {
         console.error('OpenAI call failed:', err);
 
         if (err.name === 'AbortError') {
             return {
-                text: 'The AI service is taking too long to respond. Please try again.',
+                text: 'I\'m taking longer than usual to think. Let me try again - could you resend your message?',
                 confidence: 0.3,
                 source: 'openai-timeout',
                 needsDoctorReview: true
@@ -123,7 +158,7 @@ async function callOpenAI(message, userContext) {
         }
 
         return {
-            text: 'I could not reach the AI service. Please try again soon.',
+            text: 'I\'m having trouble connecting right now. Please try again in a moment.',
             confidence: 0.5,
             source: 'openai-fallback',
             needsDoctorReview: true
@@ -131,7 +166,49 @@ async function callOpenAI(message, userContext) {
     }
 }
 
-export async function generateMedicalResponse(message, userContext) {
+// Helper: Build health profile summary
+function buildHealthProfile(context) {
+    const parts = [];
+    if (context.age) parts.push(`Age: ${context.age}`);
+    if (context.sex) parts.push(`Sex: ${context.sex}`);
+    if (context.height) parts.push(`Height: ${context.height}cm`);
+    if (context.weight) parts.push(`Weight: ${context.weight}kg`);
+    if (context.activityLevel) parts.push(`Activity: ${context.activityLevel}`);
+    if (context.conditions?.length) parts.push(`Conditions: ${context.conditions.join(', ')}`);
+    if (context.medications?.length) parts.push(`Medications: ${context.medications.join(', ')}`);
+    if (context.recentSteps) parts.push(`Recent daily steps: ${context.recentSteps}`);
+    if (context.recentSleep) parts.push(`Recent sleep: ${context.recentSleep}hrs`);
+
+    return parts.length > 0 ? parts.join(' | ') : 'Limited health data available';
+}
+
+// Helper: Detect query type
+function detectQueryType(message) {
+    const lower = message.toLowerCase();
+    if (lower.includes('symptom') || lower.includes('pain') || lower.includes('hurt') || lower.includes('ache')) return 'symptoms';
+    if (lower.includes('sleep') || lower.includes('tired') || lower.includes('insomnia') || lower.includes('fatigue')) return 'sleep';
+    if (lower.includes('stress') || lower.includes('anxious') || lower.includes('anxiety') || lower.includes('worry') || lower.includes('mental')) return 'mental_health';
+    if (lower.includes('diet') || lower.includes('eat') || lower.includes('food') || lower.includes('nutrition') || lower.includes('weight')) return 'nutrition';
+    if (lower.includes('exercise') || lower.includes('workout') || lower.includes('fitness') || lower.includes('active')) return 'fitness';
+    if (lower.includes('medication') || lower.includes('medicine') || lower.includes('drug') || lower.includes('pill')) return 'medication';
+    return 'general';
+}
+
+// Helper: Get guidance based on query type
+function getQueryTypeGuidance(queryType) {
+    const guidance = {
+        symptoms: 'IMPORTANT: For symptom queries, assess severity, suggest home care when safe, and clearly indicate when to seek medical attention.',
+        sleep: 'Focus on sleep hygiene tips, relaxation techniques, and lifestyle factors affecting sleep.',
+        mental_health: 'Be especially empathetic. Suggest coping strategies and always mention professional help for persistent issues.',
+        nutrition: 'Provide practical dietary suggestions. Consider user\'s health profile for personalized advice.',
+        fitness: 'Give safe exercise recommendations appropriate to user\'s activity level and any health conditions.',
+        medication: 'CAUTION: Never recommend specific medications. Advise consulting pharmacist or doctor.',
+        general: 'Provide helpful, supportive guidance based on the user\'s question.'
+    };
+    return guidance[queryType] || guidance.general;
+}
+
+export async function generateMedicalResponse(message, userContext, conversationHistory = []) {
     // Prefer Infermedica when credentials exist, else OpenAI, else simple heuristic
     if (process.env.INFERMEDICA_APP_ID && process.env.INFERMEDICA_APP_KEY) {
         const infer = await callInfermedica(message, userContext);
@@ -139,7 +216,7 @@ export async function generateMedicalResponse(message, userContext) {
     }
 
     if (process.env.OPENAI_API_KEY) {
-        const ai = await callOpenAI(message, userContext);
+        const ai = await callOpenAI(message, userContext, conversationHistory);
         if (ai) return ai;
     }
 
