@@ -1,0 +1,97 @@
+{
+  "expo": {
+    "name": "Health-Care-App",
+    "slug": "Health-Care-App",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.HealthCareApp",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "Read heart rate and steps to track your health.",
+        "NSHealthUpdateUsageDescription": "Update your health data.",
+        "NSUserTrackingUsageDescription": "We need permission to send you health alerts and chat notifications."
+      },
+      "googleServicesFile": "./GoogleService-Info.plist"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.HealthCareApp",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "WAKE_LOCK",
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.BODY_SENSORS"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "healthcareapp"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-apple-authentication",
+        {
+          "appleTeamId": "YOUR_APPLE_TEAM_ID"
+        }
+      ],
+      [
+        "@react-native-firebase/app",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      [
+        "@react-native-firebase/messaging",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      "expo-font"
+    ],
+    "scheme": "healthcareapp",
+    "extra": {
+      "eas": {
+        "projectId": "bac757ab-486d-4378-a742-df1d9c293177"
+      },
+      "router": {}
+    },
+    "owner": "nabil-201"
+  }
+}

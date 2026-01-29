@@ -1,0 +1,170 @@
+import { Controller, Get, Post, Body, UseGuards, Request, HttpException, HttpStatus } from '@nestjs/common';
+import { RabbitMQService } from '../services/rabbitmq.service';
+import { CacheService } from '../services/cache.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+
+@ApiTags('health')
+@Controller('health')
+export class HealthController {
+  constructor(
+    private readonly rabbitMQService: RabbitMQService,
+    private readonly cacheService: CacheService,
+  ) { }
+
+  @Get()
+  @ApiOperation({ summary: 'Health check endpoint' })
+  @ApiResponse({ status: 200, description: 'Service is healthy' })
+  getHealth() {
+    return {
+      status: 'ok',
+      service: 'healify-main',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Get('activity')
+  @ApiOperation({ summary: 'Get user activity data with caching' })
+  @ApiResponse({ status: 200, description: 'Activity data retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getActivity(@Request() req) {
+    const userId = req.user.userId;
+
+    try {
+      // Check cache first for faster response
+      const cached = await this.cacheService.getHealthData(userId, 'activity');
+      if (cached) {
+        console.log(`[Health] Cache HIT for activity data, userId: ${userId}`);
+        return { ...cached, fromCache: true };
+      }
+
+      console.log(`[Health] Cache MISS for activity data, userId: ${userId}`);
+      // Fetch from microservice via RabbitMQ
+      const data = await this.rabbitMQService.fetchHealthData('activity');
+
+      // Cache for 5 minutes
+      await this.cacheService.cacheHealthData(userId, 'activity', data, 300);
+      return { ...data, fromCache: false };
+    } catch (error) {
+      console.error('[Health] Failed to fetch activity data:', error);
+      throw new HttpException(
+        'Failed to fetch activity data',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Get('heart-rate')
+  @ApiOperation({ summary: 'Get user heart rate data with caching' })
+  @ApiResponse({ status: 200, description: 'Heart rate data retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getHeartRate(@Request() req) {
+    const userId = req.user.userId;
+
+    try {
+      // Check cache first
+      const cached = await this.cacheService.getHealthData(userId, 'heart-rate');
+      if (cached) {
+        console.log(`[Health] Cache HIT for heart-rate data, userId: ${userId}`);
+        return { ...cached, fromCache: true };
+      }
+
+      console.log(`[Health] Cache MISS for heart-rate data, userId: ${userId}`);
+      const data = await this.rabbitMQService.fetchHealthData('heart-rate');
+
+      // Cache for 5 minutes
+      await this.cacheService.cacheHealthData(userId, 'heart-rate', data, 300);
+      return { ...data, fromCache: false };
+    } catch (error) {
+      console.error('[Health] Failed to fetch heart rate data:', error);
+      throw new HttpException(
+        'Failed to fetch heart rate data',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Get('sleep')
+  @ApiOperation({ summary: 'Get user sleep data with caching' })
+  @ApiResponse({ status: 200, description: 'Sleep data retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getSleep(@Request() req) {
+    const userId = req.user.userId;
+
+    try {
+      // Check cache first
+      const cached = await this.cacheService.getHealthData(userId, 'sleep');
+      if (cached) {
+        console.log(`[Health] Cache HIT for sleep data, userId: ${userId}`);
+        return { ...cached, fromCache: true };
+      }
+
+      console.log(`[Health] Cache MISS for sleep data, userId: ${userId}`);
+      const data = await this.rabbitMQService.fetchHealthData('sleep');
+
+      // Cache for 5 minutes
+      await this.cacheService.cacheHealthData(userId, 'sleep', data, 300);
+      return { ...data, fromCache: false };
+    } catch (error) {
+      console.error('[Health] Failed to fetch sleep data:', error);
+      throw new HttpException(
+        'Failed to fetch sleep data',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+  }
+
+  @Post('sync')
+  @ApiOperation({ summary: 'Sync health data from mobile device' })
+  @ApiResponse({ status: 200, description: 'Health data synced successfully' })
+  async syncHealthData(@Body() data: any) {
+    console.log('[Health] Received health sync data:', data);
+
+    try {
+      await this.rabbitMQService.sendHealthSync(data);
+
+      // Invalidate cache on sync to ensure fresh data
+      if (data.userId) {
+        await this.cacheService.invalidateHealthCache(data.userId);
+      }
+
+      return {
+        success: true,
+        message: 'Health data synced successfully',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('[Health] Failed to sync health data:', error);
+      throw new HttpException(
+        'Failed to sync health data',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+  }
+
+  @Post('google-fit/connect')
+  @ApiOperation({ summary: 'Log Google Fit connection status from mobile app' })
+  @ApiResponse({ status: 200, description: 'Connection status logged successfully' })
+  async logGoogleFitConnection(@Body() data: { userId?: string; platform: string; status: string }) {
+    console.log('========================================');
+    console.log('[Health/GoogleFit] CONNECTION EVENT');
+    console.log(`[Health/GoogleFit] User ID: ${data.userId || 'anonymous'}`);
+    console.log(`[Health/GoogleFit] Platform: ${data.platform}`);
+    console.log(`[Health/GoogleFit] Status: ${data.status}`);
+    console.log(`[Health/GoogleFit] Timestamp: ${new Date().toISOString()}`);
+    console.log('========================================');
+
+    return {
+      success: true,
+      message: 'Google Fit connection status logged',
+      timestamp: new Date().toISOString(),
+    };
+  }
+}

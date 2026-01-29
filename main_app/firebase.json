@@ -1,0 +1,9 @@
+{
+    "react-native": {
+        "android_notification_channel_id": "healify-notifications",
+        "android_notification_channel_name": "Healify Notifications",
+        "android_notification_channel_description": "Health alerts and chat notifications",
+        "android_notification_icon": "notification_icon",
+        "android_notification_color": "#10B981"
+    }
+}
