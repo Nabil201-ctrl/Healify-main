@@ -120,7 +120,6 @@ async function consumeHistoryRequests() {
             );
 
             channel.ack(msg);
-            channel.ack(msg);
         }
     });
 }
@@ -181,8 +180,7 @@ async function consumeSessionMessagesRequests() {
     });
 }
 
-    });
-}
+
 
 import {
     analyzeQueryClarity,
@@ -491,52 +489,10 @@ app.get("/bookmarks/:userId", async (req, res) => {
             error: error.message
         });
     }
-} catch (error) {
-    console.error("Error fetching bookmarks:", error);
-    res.status(500).json({
-        success: false,
-        message: "Failed to fetch bookmarks",
-        error: error.message
-    });
 }
-});
+);
 
-// Get user chat sessions
-app.get("/chat/sessions/:userId", async (req, res) => {
-    try {
-        const { userId } = req.params;
-        const sessions = await ChatSession.find({ userId })
-            .sort({ updatedAt: -1 })
-            .limit(50);
 
-        res.json({ success: true, sessions });
-    } catch (error) {
-        console.error("Error fetching sessions:", error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// Get messages for a specific session
-app.get("/chat/session/:sessionId/messages", async (req, res) => {
-    try {
-        const { sessionId } = req.params;
-        const messages = await ChatMessage.find({ sessionId }).sort({ timestamp: 1 });
-
-        res.json({
-            success: true,
-            messages: messages.map(m => ({
-                id: m._id,
-                author: m.author === 'user' ? 'me' : (m.author === 'doctor' ? 'doctor' : 'other'),
-                text: m.text,
-                timestamp: m.timestamp,
-                metadata: m.metadata
-            }))
-        });
-    } catch (error) {
-        console.error("Error fetching session messages:", error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
 
 
 // ============================================
