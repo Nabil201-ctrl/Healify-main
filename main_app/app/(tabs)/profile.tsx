@@ -1,15 +1,27 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, StatusBar } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Image, StatusBar, Switch } from 'react-native';
+import api from '../../api/api';
 import { useRouter } from 'expo-router';
-import { useAuthContext } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
+import { useAuthContext } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
 
 export default function ProfileScreen() {
     const { user, signOut } = useAuthContext();
-    const { colors, isDark } = useTheme();
+    const { colors, isDark, toggleTheme } = useTheme();
     const router = useRouter();
+    const [notifications, setNotifications] = useState(true);
+    const [healthStatus, setHealthStatus] = useState<string>('');
+
+    const pingBackend = async () => {
+        try {
+            const res = await api.get('/health');
+            setHealthStatus(`OK: ${res.data?.timestamp ?? ''}`);
+        } catch (e: any) {
+            setHealthStatus(`Error: ${e?.message ?? 'unknown error'}`);
+        }
+    };
 
     const InfoCard = ({ icon, label, value, color = colors.primary }: { icon: any, label: string, value: string | number, color?: string }) => (
         <View style={[tw`flex-1 p-4 rounded-2xl mb-3 mr-2 ml-2`, { backgroundColor: colors.card, minWidth: '40%' }]}>
@@ -27,16 +39,14 @@ export default function ProfileScreen() {
 
             {/* Header */}
             <View style={tw`pt-12 pb-4 px-4 flex-row items-center justify-between`}>
-                <TouchableOpacity onPress={() => router.back()} style={[tw`p-2 rounded-full`, { backgroundColor: colors.card }]}>
-                    <Ionicons name="arrow-back" size={24} color={colors.text} />
-                </TouchableOpacity>
+                <View style={[tw`w-10 h-10`]} /> {/* Spacer */}
                 <Text style={[tw`text-lg font-bold`, { color: colors.text }]}>Profile</Text>
                 <TouchableOpacity onPress={signOut} style={[tw`p-2 rounded-full`, { backgroundColor: `${colors.activityRing}20` }]}>
                     <Ionicons name="log-out-outline" size={24} color={colors.activityRing} />
                 </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={tw`px-4 pb-12`}>
+            <ScrollView contentContainerStyle={tw`px-4 pb-32`}>
                 {/* Profile Header */}
                 <View style={tw`items-center my-6`}>
                     <View style={[tw`w-24 h-24 rounded-full border-4 items-center justify-center mb-4`, { borderColor: colors.card, backgroundColor: colors.border }]}>
@@ -124,11 +134,69 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* Account Info */}
-                <View style={[tw`p-4 rounded-2xl mt-2`, { backgroundColor: colors.card }]}>
+                <View style={[tw`p-4 rounded-2xl mt-2 mb-4`, { backgroundColor: colors.card }]}>
                     <View style={tw`flex-row justify-between items-center`}>
                         <Text style={[tw`text-sm font-medium`, { color: colors.text }]}>Member Since</Text>
                         <Text style={[tw`text-sm`, { color: colors.textSecondary }]}>Dec 2024</Text>
                     </View>
+                </View>
+
+                {/* Settings Section */}
+                <Text style={[tw`text-lg font-bold mb-4 mt-6 ml-2`, { color: colors.text }]}>Settings</Text>
+
+                {/* Appearance */}
+                <View style={[tw`p-4 rounded-2xl mb-4`, { backgroundColor: colors.card }]}>
+                    <View style={tw`flex-row items-center justify-between`}>
+                        <View style={tw`flex-row items-center`}>
+                            <View style={[tw`w-8 h-8 rounded-full items-center justify-center mr-3`, { backgroundColor: isDark ? '#374151' : '#f3f4f6' }]}>
+                                <Text style={tw`text-lg`}>{isDark ? '🌙' : '☀️'}</Text>
+                            </View>
+                            <Text style={[tw`text-base font-medium`, { color: colors.text }]}>Dark Mode</Text>
+                        </View>
+                        <Switch
+                            value={isDark}
+                            onValueChange={toggleTheme}
+                            trackColor={{ false: '#d1d5db', true: '#10b981' }}
+                            thumbColor={isDark ? '#fff' : '#f3f4f6'}
+                        />
+                    </View>
+                </View>
+
+                {/* Notifications */}
+                <View style={[tw`p-4 rounded-2xl mb-4`, { backgroundColor: colors.card }]}>
+                    <View style={tw`flex-row items-center justify-between`}>
+                        <View style={tw`flex-row items-center`}>
+                            <View style={[tw`w-8 h-8 rounded-full items-center justify-center mr-3`, { backgroundColor: isDark ? '#374151' : '#f3f4f6' }]}>
+                                <Text style={tw`text-lg`}>🔔</Text>
+                            </View>
+                            <Text style={[tw`text-base font-medium`, { color: colors.text }]}>Notifications</Text>
+                        </View>
+                        <Switch
+                            value={notifications}
+                            onValueChange={setNotifications}
+                            trackColor={{ false: '#d1d5db', true: '#10b981' }}
+                            thumbColor={notifications ? '#fff' : '#f3f4f6'}
+                        />
+                    </View>
+                </View>
+
+                {/* System Status */}
+                <View style={[tw`p-4 rounded-2xl mb-4`, { backgroundColor: colors.card }]}>
+                    <Text style={[tw`font-semibold mb-3`, { color: colors.text }]}>System Status</Text>
+                    <TouchableOpacity
+                        onPress={pingBackend}
+                        style={tw`bg-green-600 py-3 rounded-xl items-center mb-3`}
+                    >
+                        <Text style={tw`text-white font-semibold`}>🏥 Check Backend Health</Text>
+                    </TouchableOpacity>
+
+                    {healthStatus ? (
+                        <View style={[tw`p-3 rounded-xl`, { backgroundColor: healthStatus.startsWith('OK') ? (isDark ? '#064e3b' : '#ecfdf5') : (isDark ? '#7f1d1d' : '#fef2f2') }]}>
+                            <Text style={[tw`font-medium text-xs`, { color: healthStatus.startsWith('OK') ? (isDark ? '#6ee7b7' : '#047857') : (isDark ? '#fca5a5' : '#b91c1c') }]}>
+                                {healthStatus}
+                            </Text>
+                        </View>
+                    ) : null}
                 </View>
 
             </ScrollView>

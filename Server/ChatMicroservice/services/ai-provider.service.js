@@ -248,6 +248,34 @@ ${getQueryTypeGuidance(queryType)}`;
     }
 }
 
+// Mock AI for when no keys are present
+function callMockAI(message, history) {
+    const lower = message.toLowerCase();
+    let text = "";
+
+    // Simple keyword matching for demo/dev purposes
+    if (lower.includes('hello') || lower.includes('hi ')) {
+        text = "Hello! I'm Healify (Demo Mode). I can help you track symptoms or discuss general health. How are you feeling today?";
+    } else if (lower.includes('stomach') || lower.includes('pain') || lower.includes('ache')) {
+        text = "It sounds like you're in some discomfort. Since I'm in demo mode, I can't give specific advice, but generally, staying hydrated and resting can help. Have you eaten anything unusual recently?";
+    } else if (lower.includes('sleep') || lower.includes('tired')) {
+        text = "Sleep is crucial for recovery. Try to maintain a consistent schedule and avoid screens before bed. Would you like some relaxation tips?";
+    } else if (lower.includes('jog') || lower.includes('run') || lower.includes('exercise')) {
+        text = "Great job staying active! Regular exercise is key to health. Make sure to stay hydrated and listen to your body.";
+    } else if (lower.includes('drink') || lower.includes('water') || lower.includes('soda')) {
+        text = "Hydration is important. Water is usually the best choice. Sugary or carbonated drinks might upset your stomach if you're sensitive.";
+    } else {
+        text = "I hear you. Could you tell me more about that? (Note: To get real medical AI responses, please configure your API keys in the backend .env file)";
+    }
+
+    return {
+        text,
+        confidence: 1.0,
+        source: 'mock-ai',
+        metadata: { demo: true }
+    };
+}
+
 // Helper: Build health profile summary
 function buildHealthProfile(context) {
     const parts = [];
@@ -291,23 +319,30 @@ function getQueryTypeGuidance(queryType) {
 }
 
 export async function generateMedicalResponse(message, userContext, conversationHistory = []) {
-    // 1. Try Infermedica first (Diagnostic/Clinical parsing)
-    if (process.env.INFERMEDICA_APP_ID && process.env.INFERMEDICA_APP_KEY) {
-        const infer = await callInfermedica(message, userContext);
-        if (infer) return infer;
-    }
-
-    // 2. Try Gemini (Primary Generic AI)
+    // 1. Try Gemini (Primary Health AI) - PREFERRED
     if (process.env.GEMINI_API_KEY) {
         const gemini = await callGemini(message, userContext, conversationHistory);
         if (gemini) return gemini;
     }
+
+    // 2. Try Infermedica (Diagnostic/Clinical parsing) - SECONDARY/DISABLED
+    /* 
+    if (process.env.INFERMEDICA_APP_ID && process.env.INFERMEDICA_APP_KEY) {
+        const infer = await callInfermedica(message, userContext);
+        if (infer) return infer;
+    } 
+    */
 
     // 3. Try OpenAI (Secondary/Fallback)
     if (process.env.OPENAI_API_KEY) {
         const openai = await callOpenAI(message, userContext, conversationHistory);
         if (openai) return openai;
     }
+
+    // 4. Mock AI (Dev Mode / No Keys)
+    // If we get here, no AI services are configured. Use a smart mock response.
+    console.log('No AI keys configured. Using Mock AI.');
+    return callMockAI(message, conversationHistory);
 
     // 4. Heuristic fallback
     const lower = message.toLowerCase();

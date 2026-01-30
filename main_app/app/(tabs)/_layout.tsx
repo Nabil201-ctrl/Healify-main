@@ -46,7 +46,7 @@ export default function TabsLayout() {
           const iconMap: Record<string, any> = {
             home: focused ? 'home' : 'home-outline',
             chat: focused ? 'chatbubbles' : 'chatbubbles-outline',
-            settings: focused ? 'settings' : 'settings-outline',
+            profile: focused ? 'person' : 'person-outline',
           };
           const name = iconMap[route.name] ?? 'ellipse';
           return <Ionicons name={name} size={size} color={color} />;
@@ -55,7 +55,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="home" options={{ title: 'Home' }} />
       <Tabs.Screen name="chat" options={{ title: 'Chat' }} />
-      <Tabs.Screen name="settings" options={{ title: 'Settings' }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
     </Tabs>
   );
 }
