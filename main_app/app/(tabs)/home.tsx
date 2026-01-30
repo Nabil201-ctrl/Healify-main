@@ -255,18 +255,85 @@ export default function Home() {
                 </View>
 
                 {/* Trends Section */}
-                <Text style={[tw`text-lg font-bold mb-3 ml-1`, { color: colors.text }]}>Trends</Text>
-                <View style={tw`flex-row`}>
-                    <CustomCard style={tw`w-36 h-32 mr-3 justify-center items-center`}>
-                        <Ionicons name="flame" size={24} color={colors.activityRing} style={tw`mb-2`} />
-                        <Text style={[tw`font-semibold`, { color: colors.text }]}>Move</Text>
-                        <Text style={[tw`text-xs`, { color: colors.activityRing }]}>{stats.calories} KCAL</Text>
-                    </CustomCard>
-                    <CustomCard style={tw`w-36 h-32 mr-3 justify-center items-center`}>
-                        <Ionicons name="speedometer" size={24} color={colors.steps} style={tw`mb-2`} />
-                        <Text style={[tw`font-semibold`, { color: colors.text }]}>Walking Pace</Text>
-                        <Text style={[tw`text-xs`, { color: colors.steps }]}>4.4 KM/H</Text>
-                    </CustomCard>
+                <View style={tw`mt-4`}>
+                    <View style={tw`flex-row justify-between items-center mb-3 px-1`}>
+                        <Text style={[tw`text-xl font-bold`, { color: colors.text }]}>Trends</Text>
+                        <TouchableOpacity>
+                            <Text style={[tw`text-sm font-semibold`, { color: colors.primary }]}>Show All</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={tw`pr-4`}
+                        decelerationRate="fast"
+                        snapToInterval={176} // w-40 (160) + mr-4 (16)
+                    >
+                        {/* Trend Card 1: Move */}
+                        <CustomCard style={tw`w-40 mr-4 p-4 justify-between h-36`}>
+                            <View style={tw`flex-row justify-between items-start`}>
+                                <View style={[tw`p-2 rounded-full`, { backgroundColor: 'rgba(250, 17, 79, 0.1)' }]}>
+                                    <Ionicons name="flame" size={20} color={colors.activityRing} />
+                                </View>
+                                {/* Trend Indicator */}
+                                <View style={tw`flex-row items-center`}>
+                                    <Ionicons name="arrow-up" size={12} color={colors.activityRing} />
+                                    <Text style={[tw`text-xs font-bold ml-0.5`, { color: colors.activityRing }]}>12%</Text>
+                                </View>
+                            </View>
+
+                            <View>
+                                <Text style={[tw`font-medium text-sm mb-1`, { color: colors.textSecondary }]}>Move</Text>
+                                <View style={tw`flex-row items-baseline`}>
+                                    <Text style={[tw`text-2xl font-bold`, { color: colors.text }]}>{stats.calories}</Text>
+                                    <Text style={[tw`text-xs ml-1 font-semibold`, { color: colors.textSecondary }]}>KCAL</Text>
+                                </View>
+                            </View>
+                        </CustomCard>
+
+                        {/* Trend Card 2: Steps */}
+                        <CustomCard style={tw`w-40 mr-4 p-4 justify-between h-36`}>
+                            <View style={tw`flex-row justify-between items-start`}>
+                                <View style={[tw`p-2 rounded-full`, { backgroundColor: 'rgba(8, 145, 178, 0.1)' }]}>
+                                    <Ionicons name="footsteps" size={20} color={colors.steps} />
+                                </View>
+                                <View style={tw`flex-row items-center`}>
+                                    <Ionicons name="arrow-up" size={12} color={colors.steps} />
+                                    <Text style={[tw`text-xs font-bold ml-0.5`, { color: colors.steps }]}>5%</Text>
+                                </View>
+                            </View>
+
+                            <View>
+                                <Text style={[tw`font-medium text-sm mb-1`, { color: colors.textSecondary }]}>Steps</Text>
+                                <View style={tw`flex-row items-baseline`}>
+                                    <Text style={[tw`text-2xl font-bold`, { color: colors.text }]}>{stats.steps > 1000 ? (stats.steps / 1000).toFixed(1) + 'k' : stats.steps}</Text>
+                                    <Text style={[tw`text-xs ml-1 font-semibold`, { color: colors.textSecondary }]}>steps</Text>
+                                </View>
+                            </View>
+                        </CustomCard>
+
+                        {/* Trend Card 3: Distance */}
+                        <CustomCard style={tw`w-40 mr-4 p-4 justify-between h-36`}>
+                            <View style={tw`flex-row justify-between items-start`}>
+                                <View style={[tw`p-2 rounded-full`, { backgroundColor: 'rgba(168, 219, 16, 0.1)' }]}>
+                                    <Ionicons name="map" size={20} color={colors.distance} />
+                                </View>
+                                <View style={tw`flex-row items-center`}>
+                                    <Ionicons name="arrow-forward" size={12} color={colors.textSecondary} />
+                                    <Text style={[tw`text-xs font-bold ml-0.5`, { color: colors.textSecondary }]}>--</Text>
+                                </View>
+                            </View>
+
+                            <View>
+                                <Text style={[tw`font-medium text-sm mb-1`, { color: colors.textSecondary }]}>Distance</Text>
+                                <View style={tw`flex-row items-baseline`}>
+                                    <Text style={[tw`text-2xl font-bold`, { color: colors.text }]}>{stats.distance}</Text>
+                                    <Text style={[tw`text-xs ml-1 font-semibold`, { color: colors.textSecondary }]}>KM</Text>
+                                </View>
+                            </View>
+                        </CustomCard>
+                    </ScrollView>
                 </View>
 
             </ScrollView>
