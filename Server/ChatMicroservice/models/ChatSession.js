@@ -11,7 +11,9 @@ const ChatSessionSchema = new mongoose.Schema({
         default: 'active'
     },
     isBookmarked: { type: Boolean, default: false, index: true },
+    isBookmarked: { type: Boolean, default: false, index: true },
     bookmarkedAt: { type: Date },
+    title: { type: String, default: 'New Chat' },
 
     // AI Safety Fields
     needsDoctorReview: { type: Boolean, default: false, index: true },

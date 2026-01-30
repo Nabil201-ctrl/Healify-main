@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from '@react-native-community/netinfo';
 import { AuthService } from "../services/AuthService";
 
-export const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:3000";
+export const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "https://healify-main.vercel.app/";
 
 // ✅ Create Axios instance
 const api = axios.create({

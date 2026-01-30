@@ -142,6 +142,54 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  async requestChatSessions(userId: string): Promise<any[]> {
+    if (!this.channel) throw new Error('RabbitMQ channel not initialized');
+
+    const correlationId = randomUUID();
+    const replyTo = await this.channel.assertQueue('', { exclusive: true });
+
+    return new Promise((resolve, reject) => {
+      this.channel.consume(replyTo.queue, (msg) => {
+        if (msg && msg.properties.correlationId === correlationId) {
+          const content = JSON.parse(msg.content.toString());
+          resolve(content.sessions);
+          this.channel.deleteQueue(replyTo.queue);
+        }
+      }, { noAck: true });
+
+      this.channel.sendToQueue('chat_session_list_request',
+        Buffer.from(JSON.stringify({ userId })),
+        { correlationId, replyTo: replyTo.queue }
+      );
+
+      setTimeout(() => resolve([]), 5000);
+    });
+  }
+
+  async requestSessionMessages(sessionId: string): Promise<any[]> {
+    if (!this.channel) throw new Error('RabbitMQ channel not initialized');
+
+    const correlationId = randomUUID();
+    const replyTo = await this.channel.assertQueue('', { exclusive: true });
+
+    return new Promise((resolve, reject) => {
+      this.channel.consume(replyTo.queue, (msg) => {
+        if (msg && msg.properties.correlationId === correlationId) {
+          const content = JSON.parse(msg.content.toString());
+          resolve(content.messages);
+          this.channel.deleteQueue(replyTo.queue);
+        }
+      }, { noAck: true });
+
+      this.channel.sendToQueue('chat_session_messages_request',
+        Buffer.from(JSON.stringify({ sessionId })),
+        { correlationId, replyTo: replyTo.queue }
+      );
+
+      setTimeout(() => resolve([]), 5000);
+    });
+  }
+
   async sendHealthSync(data: any) {
     try {
       this.channel.sendToQueue(

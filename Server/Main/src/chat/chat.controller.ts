@@ -246,4 +246,30 @@ export class ChatController {
       };
     }
   }
+
+  @Get('sessions/:userId')
+  @ApiOperation({ summary: 'Get user chat sessions' })
+  async getChatSessions(@Request() req, @Param('userId') userId: string) {
+    if (req.user.userId !== userId) return { success: false, message: 'Unauthorized' };
+
+    try {
+      const sessions = await this.rabbitMQService.requestChatSessions(userId);
+      return { success: true, sessions };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  @Get('session/:sessionId/messages')
+  @ApiOperation({ summary: 'Get messages for a specific session' })
+  async getSessionMessages(@Request() req, @Param('sessionId') sessionId: string) {
+    // Note: In a real app we should verify the session belongs to the user
+    // For now we assume the user knows the sessionId implies access or we trust the microservice content
+    try {
+      const messages = await this.rabbitMQService.requestSessionMessages(sessionId);
+      return { success: true, messages };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
 }

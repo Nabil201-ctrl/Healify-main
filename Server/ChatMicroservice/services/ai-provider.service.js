@@ -1,3 +1,5 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
 const MODEL_HINT = "Use concise, empathetic medical guidance. Do not diagnose; suggest next steps and safety flags.";
 
 async function callInfermedica(message, userContext) {
@@ -50,6 +52,86 @@ async function callInfermedica(message, userContext) {
             source: 'infermedica-fallback',
             needsDoctorReview: true
         };
+    }
+}
+
+async function callGemini(message, userContext, conversationHistory = []) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return null;
+
+    try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+        // Build health profile section if available
+        const healthProfile = userContext ? buildHealthProfile(userContext) : 'No health profile available';
+        const queryType = detectQueryType(message);
+
+        const systemPrompt = `You are Healify Assistant, an empathetic and knowledgeable health companion.
+
+CORE GUIDELINES:
+- Be warm, supportive, and conversational while maintaining professionalism
+- Provide actionable, practical health guidance
+- Never diagnose conditions - guide users toward appropriate care
+- Use simple language, avoid medical jargon
+- Keep responses concise (under 150 words) but helpful
+- Include relevant safety warnings when appropriate
+- Remember context from previous messages in this conversation
+
+RESPONSE FORMAT:
+- Start with acknowledgment of user's concern
+- Provide clear, structured guidance with bullet points when helpful
+- End with a supportive next step or question
+- Always include the medical disclaimer
+
+USER HEALTH PROFILE:
+${healthProfile}
+
+QUERY TYPE: ${queryType}
+${getQueryTypeGuidance(queryType)}`;
+
+        // Convert history to Gemini format
+        const history = conversationHistory.map(msg => ({
+            role: msg.author === 'user' ? 'user' : 'model',
+            parts: [{ text: msg.text }]
+        }));
+
+        // Limit history to last 10 messages to avoid token limits
+        const limitedHistory = history.slice(-10);
+
+        const chat = model.startChat({
+            history: [
+                {
+                    role: "user",
+                    parts: [{ text: systemPrompt }]
+                },
+                {
+                    role: "model",
+                    parts: [{ text: "Understood. I am Healify Assistant, ready to provide empathetic health guidance within my safety boundaries." }]
+                },
+                ...limitedHistory
+            ]
+        });
+
+        const result = await chat.sendMessage(message);
+        const response = await result.response;
+        let text = response.text();
+
+        // Ensure medical disclaimer is present
+        if (text && !text.includes('not a doctor') && !text.includes('medical professional') && !text.includes('healthcare provider')) {
+            text += '\n\n⚠️ *I\'m an AI assistant, not a doctor. Please consult a healthcare professional for medical advice.*';
+        }
+
+        return {
+            text,
+            confidence: 0.9,
+            source: 'gemini',
+            metadata: { model: "gemini-pro", queryType }
+        };
+
+    } catch (err) {
+        console.error('Gemini call failed:', err);
+        return null; // Fallback to other providers
     }
 }
 
@@ -209,18 +291,25 @@ function getQueryTypeGuidance(queryType) {
 }
 
 export async function generateMedicalResponse(message, userContext, conversationHistory = []) {
-    // Prefer Infermedica when credentials exist, else OpenAI, else simple heuristic
+    // 1. Try Infermedica first (Diagnostic/Clinical parsing)
     if (process.env.INFERMEDICA_APP_ID && process.env.INFERMEDICA_APP_KEY) {
         const infer = await callInfermedica(message, userContext);
         if (infer) return infer;
     }
 
-    if (process.env.OPENAI_API_KEY) {
-        const ai = await callOpenAI(message, userContext, conversationHistory);
-        if (ai) return ai;
+    // 2. Try Gemini (Primary Generic AI)
+    if (process.env.GEMINI_API_KEY) {
+        const gemini = await callGemini(message, userContext, conversationHistory);
+        if (gemini) return gemini;
     }
 
-    // Heuristic fallback
+    // 3. Try OpenAI (Secondary/Fallback)
+    if (process.env.OPENAI_API_KEY) {
+        const openai = await callOpenAI(message, userContext, conversationHistory);
+        if (openai) return openai;
+    }
+
+    // 4. Heuristic fallback
     const lower = message.toLowerCase();
     let text = 'I am here to help. Please describe your symptoms, when they started, and any key changes recently.';
     if (lower.includes('chest') || lower.includes('pain')) {

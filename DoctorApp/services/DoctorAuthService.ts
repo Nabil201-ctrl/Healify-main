@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 // Use localhost for simulator, or your machine's IP for physical device
-const API_URL = 'http://localhost:3001';
+const API_URL = 'https://healify-chat.onrender.com';
 
 export const doctorLogin = async (email: string, password: string) => {
     try {

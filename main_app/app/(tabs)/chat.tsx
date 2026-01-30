@@ -1,28 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, Image, KeyboardAvoidingView, Platform, StatusBar } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, StatusBar, Animated, Dimensions } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuthContext } from '../../context/AuthContext';
-import { toggleChatBookmark } from '../../services/ChatService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { toggleChatBookmark, getChatSessions, getSessionMessages, sendChatMessage, getChatSession } from '../../services/ChatService';
 import tw from 'twrnc';
+import { Ionicons } from '@expo/vector-icons';
 
-// API Configuration - uses environment variable with fallback
-const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
-
-// Quick suggestion topics for empty chat
-const QUICK_SUGGESTIONS = [
-	{ id: 'symptoms', label: '🩺 Track Symptoms', message: "I'd like to track some symptoms I've been experiencing" },
-	{ id: 'sleep', label: '😴 Sleep Help', message: "I've been having trouble sleeping lately" },
-	{ id: 'stress', label: '🧘 Stress Relief', message: 'I feel stressed and need some relaxation tips' },
-	{ id: 'nutrition', label: '🥗 Nutrition Tips', message: 'Can you give me some healthy eating advice?' },
-	{ id: 'fitness', label: '🏃 Fitness Guide', message: 'I want to start exercising more regularly' },
-];
-
-type QuickSuggestion = {
-	id: string;
-	label: string;
-	message: string;
-};
+const { width } = Dimensions.get('window');
+const SIDEBAR_WIDTH = width * 0.75;
 
 type Message = {
 	id: string;
@@ -35,27 +20,12 @@ type Message = {
 	};
 };
 
-const Avatar = ({ uri }: { uri?: string }) => (
-	<View
-		style={{
-			width: 36,
-			height: 36,
-			borderRadius: 18,
-			overflow: 'hidden',
-			backgroundColor: '#e5e7eb',
-			borderWidth: 1,
-			borderColor: '#f3f4f6'
-		}}
-	>
-		{uri ? (
-			<Image source={{ uri }} style={{ width: '100%', height: '100%' }} />
-		) : (
-			<View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#06B6D4' }}>
-				<Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>AI</Text>
-			</View>
-		)}
-	</View>
-);
+type ChatSession = {
+	sessionId: string;
+	title: string;
+	updatedAt: string;
+	preview?: string;
+};
 
 export default function ChatScreen() {
 	const { isDark, colors } = useTheme();
@@ -65,63 +35,91 @@ export default function ChatScreen() {
 	const [isTyping, setIsTyping] = useState(false);
 	const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 	const [isBookmarked, setIsBookmarked] = useState(false);
-	const [showSuggestions, setShowSuggestions] = useState(true);
 	const flatListRef = useRef<FlatList>(null);
 
-	// Handle quick suggestion tap
-	const handleQuickSuggestion = (suggestion: QuickSuggestion) => {
-		setInput(suggestion.message);
-		setShowSuggestions(false);
-	};
+	// Sidebar State
+	const [sessions, setSessions] = useState<ChatSession[]>([]);
+	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+	const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
 
-	// Load History on Mount
 	useEffect(() => {
 		if (user) {
-			loadHistory();
+			loadSessions();
 		}
 	}, [user]);
 
-	const loadHistory = async () => {
+	const loadSessions = async () => {
 		try {
-			const token = await AsyncStorage.getItem('accessToken');
 			const userId = user?.id || "user_123";
-
-			if (!token) return;
-
-			const response = await fetch(`${API_URL}/chat/history/${userId}`, {
-				headers: { 'Authorization': `Bearer ${token}` }
-			});
-
-			const data = await response.json();
-			if (data.success && data.history) {
-				const formattedMessages = data.history.map((m: any) => ({
-					id: m.id,
-					author: m.author === 'me' ? 'me' : 'other',
-					text: m.text,
-					timestamp: new Date(m.timestamp).getTime()
-				}));
-				setMessages(formattedMessages);
-				setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 100);
+			const data = await getChatSessions(userId);
+			if (data.success) {
+				setSessions(data.sessions);
 			}
 		} catch (error) {
-			console.error("Failed to load history:", error);
+			console.error("Failed to load sessions:", error);
 		}
 	};
 
+	const loadSessionMessages = async (sessionId: string) => {
+		try {
+			const data = await getSessionMessages(sessionId);
+			if (data.success) {
+				const formattedMessages = data.messages.map((m: any) => ({
+					id: m.id,
+					author: m.author,
+					text: m.text,
+					timestamp: new Date(m.timestamp).getTime(),
+					metadata: m.metadata
+				}));
+				setMessages(formattedMessages);
+				setCurrentSessionId(sessionId);
+				closeSidebar();
+				setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 100);
+			}
+		} catch (error) {
+			console.error("Failed to load session messages:", error);
+		}
+	};
+
+	const startNewChat = () => {
+		setMessages([]);
+		setCurrentSessionId(null);
+		closeSidebar();
+	};
+
+	const toggleSidebar = () => {
+		if (isSidebarOpen) {
+			closeSidebar();
+		} else {
+			openSidebar();
+		}
+	};
+
+	const openSidebar = () => {
+		setIsSidebarOpen(true);
+		Animated.timing(slideAnim, {
+			toValue: 0,
+			duration: 300,
+			useNativeDriver: true,
+		}).start();
+	};
+
+	const closeSidebar = () => {
+		Animated.timing(slideAnim, {
+			toValue: -SIDEBAR_WIDTH,
+			duration: 300,
+			useNativeDriver: true,
+		}).start(() => setIsSidebarOpen(false));
+	};
+
+	// Modified poller to use ChatService
 	const pollForResponse = async (sessionId: string) => {
 		setIsTyping(true);
-		const token = await AsyncStorage.getItem('accessToken');
-		if (!token) {
-			setIsTyping(false);
-			return;
-		}
+		// Using ChatService.getChatSession which already uses axios/api
 
 		const pollInterval = setInterval(async () => {
 			try {
-				const response = await fetch(`${API_URL}/chat/session/${sessionId}`, {
-					headers: { 'Authorization': `Bearer ${token}` }
-				});
-				const data = await response.json();
+				const data = await getChatSession(sessionId);
 
 				if (data.success && data.session.status === 'completed') {
 					clearInterval(pollInterval);
@@ -135,10 +133,13 @@ export default function ChatScreen() {
 					};
 					setMessages(prev => [...prev, reply]);
 					setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+
+					// Refresh sessions to show new title/update
+					loadSessions();
 				}
 			} catch (error) {
-				clearInterval(pollInterval);
-				setIsTyping(false);
+				// Keep polling or handle error limit
+				// don't break immediately
 			}
 		}, 1000);
 
@@ -163,21 +164,15 @@ export default function ChatScreen() {
 		setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
 		try {
-			const token = await AsyncStorage.getItem('accessToken');
-			if (!token) return;
+			// Using ChatService.sendChatMessage
+			// Note: Service expects (message, sessionId?)
+			const data = await sendChatMessage(trimmed, currentSessionId || undefined);
 
-			const response = await fetch(`${API_URL}/chat/send`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${token}`
-				},
-				body: JSON.stringify({ message: trimmed })
-			});
-
-			const data = await response.json();
 			if (data.success) {
-				setCurrentSessionId(data.sessionId);
+				if (!currentSessionId) {
+					setCurrentSessionId(data.sessionId);
+					loadSessions(); // Reload list for new session
+				}
 				pollForResponse(data.sessionId);
 			}
 		} catch (error) {
@@ -200,43 +195,44 @@ export default function ChatScreen() {
 		const isDoctor = item.author === 'doctor';
 
 		return (
-			<View style={{ flexDirection: isMe ? 'row-reverse' : 'row', alignItems: 'flex-end', marginVertical: 8 }}>
+			<View style={{ flexDirection: isMe ? 'row-reverse' : 'row', alignItems: 'flex-start', marginVertical: 10 }}>
 				{!isMe && (
 					<View style={{
-						width: 36, height: 36, borderRadius: 18, overflow: 'hidden',
-						backgroundColor: isDoctor ? '#10b981' : '#06B6D4',
-						borderWidth: 2, borderColor: isDoctor ? '#059669' : '#0891b2',
-						justifyContent: 'center', alignItems: 'center', marginRight: 8
+						width: 32, height: 32, borderRadius: 16,
+						backgroundColor: isDoctor ? '#10b981' : '#0ea5e9',
+						justifyContent: 'center', alignItems: 'center', marginRight: 8,
+						marginTop: 2
 					}}>
-						<Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>
-							{isDoctor ? '👨‍⚕️' : 'AI'}
+						<Text style={{ fontSize: 16 }}>
+							{isDoctor ? '👨‍⚕️' : '🤖'}
 						</Text>
 					</View>
 				)}
 				<View
 					style={{
-						backgroundColor: isMe
-							? colors.primary // User color (Green)
-							: colors.card,   // AI/Doctor color (Dark/Light card)
+						backgroundColor: isMe ? colors.primary : colors.card,
 						paddingHorizontal: 16,
 						paddingVertical: 12,
-						borderRadius: 20,
-						borderBottomRightRadius: isMe ? 4 : 20,
-						borderBottomLeftRadius: isMe ? 20 : 4,
-						maxWidth: '75%',
-						borderWidth: isMe ? 0 : 1,
-						borderColor: isMe ? 'transparent' : colors.border
+						borderRadius: 18,
+						borderTopLeftRadius: !isMe ? 4 : 18,
+						borderTopRightRadius: isMe ? 4 : 18,
+						maxWidth: '80%',
+						shadowColor: "#000",
+						shadowOffset: { width: 0, height: 1 },
+						shadowOpacity: 0.1,
+						shadowRadius: 1,
+						elevation: 1
 					}}
 				>
 					{isDoctor && (
-						<Text style={{ fontSize: 10, color: colors.textSecondary, fontWeight: '600', marginBottom: 4 }}>
-							{item.metadata?.doctorName || '👨‍⚕️ Doctor'}
+						<Text style={{ fontSize: 11, color: colors.textSecondary, fontWeight: '700', marginBottom: 4 }}>
+							{item.metadata?.doctorName || 'Doctor'}
 						</Text>
 					)}
 					<Text style={{
-						color: isMe ? '#fff' : colors.text, // White text for user, theme text for AI
-						fontSize: 15,
-						lineHeight: 22
+						color: isMe ? '#fff' : colors.text,
+						fontSize: 16,
+						lineHeight: 24
 					}}>
 						{item.text}
 					</Text>
@@ -247,103 +243,168 @@ export default function ChatScreen() {
 
 	return (
 		<KeyboardAvoidingView
-			style={{ flex: 1, backgroundColor: colors.background }} // Global background
+			style={{ flex: 1, backgroundColor: colors.background }}
 			behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-			keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+			keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
 		>
 			<StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
 
-			{/* Chat header */}
+			{/* Header */}
 			<View style={{
-				paddingHorizontal: 16,
-				paddingVertical: 12,
-				paddingTop: 60, // Safe Area padding roughly
-				borderBottomWidth: 1,
-				borderBottomColor: colors.border,
-				backgroundColor: colors.background
+				flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+				paddingHorizontal: 16, paddingTop: 60, paddingBottom: 16,
+				backgroundColor: colors.background,
+				borderBottomWidth: 1, borderBottomColor: colors.border,
+				zIndex: 10
 			}}>
-				<View style={{ flexDirection: 'row', alignItems: 'center' }}>
-					<View style={{
-						width: 40, height: 40, borderRadius: 20,
-						backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center',
-						borderWidth: 1, borderColor: colors.border
-					}}>
-						<Text style={{ fontSize: 20 }}>🤖</Text>
-					</View>
-					<View style={{ marginLeft: 12, flex: 1 }}>
-						<Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Healify Assistant</Text>
-						<Text style={{ fontSize: 12, color: colors.textSecondary }}>Always here for you</Text>
-					</View>
-					<TouchableOpacity
-						onPress={handleBookmarkToggle}
-						disabled={!currentSessionId}
-						style={{
-							padding: 8, borderRadius: 20,
-							backgroundColor: colors.card,
-							borderWidth: 1, borderColor: colors.border,
-							opacity: currentSessionId ? 1 : 0.5,
-						}}
-					>
-						<Text style={{ fontSize: 20, color: colors.text }}>{isBookmarked ? '⭐' : '☆'}</Text>
+				<TouchableOpacity onPress={toggleSidebar} style={{ padding: 4 }}>
+					<Ionicons name="menu" size={28} color={colors.text} />
+				</TouchableOpacity>
+
+				<Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>
+					{currentSessionId ? 'Healify Chat' : 'New Chat'}
+				</Text>
+
+				<View style={{ flexDirection: 'row', gap: 12 }}>
+					<TouchableOpacity onPress={startNewChat}>
+						<Ionicons name="create-outline" size={26} color={colors.primary} />
 					</TouchableOpacity>
 				</View>
 			</View>
 
-			{/* Messages */}
-			<FlatList
-				ref={flatListRef}
-				data={messages}
-				keyExtractor={item => item.id}
-				renderItem={({ item }) => <MessageBubble item={item} />}
-				contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 16, paddingBottom: 130 }}
-				ListFooterComponent={isTyping ? (
-					<View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10, marginTop: 5 }}>
-						<View style={{ marginLeft: 44, backgroundColor: colors.card, padding: 10, borderRadius: 15, borderWidth: 1, borderColor: colors.border }}>
-							<Text style={{ color: colors.textSecondary, fontStyle: 'italic', fontSize: 12 }}>Thinking...</Text>
-						</View>
+			{/* Main Chat Area */}
+			<View style={{ flex: 1 }}>
+				{messages.length === 0 && !currentSessionId ? (
+					<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', opacity: 0.6 }}>
+						<Ionicons name="chatbubbles-outline" size={80} color={colors.textSecondary} />
+						<Text style={{ marginTop: 16, fontSize: 18, color: colors.textSecondary, fontWeight: '500' }}>
+							Start a new conversation
+						</Text>
 					</View>
-				) : null}
-				onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-			/>
+				) : (
+					<FlatList
+						ref={flatListRef}
+						data={messages}
+						keyExtractor={item => item.id}
+						renderItem={({ item }) => <MessageBubble item={item} />}
+						contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 16, paddingBottom: 20 }}
+						ListFooterComponent={isTyping ? (
+							<View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 40, marginTop: 8 }}>
+								<Text style={{ color: colors.textSecondary, fontStyle: 'italic', fontSize: 13 }}>Healify is thinking...</Text>
+							</View>
+						) : null}
+						onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+					/>
+				)}
+			</View>
 
-			{/* Input Bar */}
-			<View
-				style={{
-					flexDirection: 'row', alignItems: 'center',
-					paddingHorizontal: 16, paddingVertical: 12,
-					borderTopWidth: 1, borderTopColor: colors.border,
-					backgroundColor: colors.background, // Match background
-					paddingBottom: Platform.OS === 'ios' ? 90 : 80 // Clear the floating tab bar
-				}}
-			>
+			{/* Input Area */}
+			<View style={{
+				paddingHorizontal: 16, paddingVertical: 12,
+				borderTopWidth: 1, borderTopColor: colors.border,
+				backgroundColor: colors.background,
+				paddingBottom: Platform.OS === 'ios' ? 30 : 150, // Increased for web/android tabs
+				alignItems: 'center' // Use flex alignment to center children
+			}}>
 				<View style={{
-					flex: 1, flexDirection: 'row', alignItems: 'center',
-					backgroundColor: colors.card, borderRadius: 24,
-					paddingHorizontal: 16, paddingVertical: 4,
-					borderWidth: 1, borderColor: colors.border
+					flexDirection: 'row', alignItems: 'center',
+					backgroundColor: colors.card,
+					borderRadius: 24,
+					paddingHorizontal: 16,
+					borderWidth: 1, borderColor: colors.border,
+					width: '100%',
+					maxWidth: 800, // Limit width on large screens
+					alignSelf: 'center' // Ensure it centers
 				}}>
 					<TextInput
 						value={input}
 						onChangeText={setInput}
-						placeholder="Type a message..."
+						placeholder="Message Healify..."
 						placeholderTextColor={colors.textSecondary}
-						style={{ flex: 1, paddingVertical: 10, color: colors.text, fontSize: 15 }}
+						style={{ flex: 1, paddingVertical: 12, color: colors.text, fontSize: 16, maxHeight: 100 }}
 						multiline
-						maxLength={500}
+						maxLength={1000}
+					/>
+					<TouchableOpacity
+						onPress={sendMessage}
+						disabled={!input.trim()}
+						style={{
+							marginLeft: 8,
+							padding: 8,
+							opacity: input.trim() ? 1 : 0.5
+						}}>
+						<Ionicons name="arrow-up-circle" size={32} color={colors.primary} />
+					</TouchableOpacity>
+				</View>
+			</View>
+
+			{/* Sidebar Overlay */}
+			{isSidebarOpen && (
+				<TouchableOpacity
+					activeOpacity={1}
+					onPress={closeSidebar}
+					style={{
+						position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+						backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 20
+					}}
+				/>
+			)}
+
+			{/* Sidebar Drawer */}
+			<Animated.View style={{
+				position: 'absolute', top: 0, bottom: 0, left: 0,
+				width: SIDEBAR_WIDTH,
+				backgroundColor: isDark ? '#1f2937' : '#f9fafb',
+				zIndex: 30,
+				transform: [{ translateX: slideAnim }],
+				shadowColor: "#000",
+				shadowOffset: { width: 2, height: 0 },
+				shadowOpacity: 0.25,
+				shadowRadius: 3.84,
+				elevation: 5
+			}}>
+				<View style={{ paddingTop: 60, paddingHorizontal: 16, paddingBottom: 20, flex: 1 }}>
+					<TouchableOpacity
+						onPress={startNewChat}
+						style={{
+							flexDirection: 'row', alignItems: 'center',
+							backgroundColor: colors.primary,
+							padding: 12, borderRadius: 12,
+							marginBottom: 20
+						}}
+					>
+						<Ionicons name="add" size={24} color="white" />
+						<Text style={{ color: 'white', fontWeight: 'bold', marginLeft: 8 }}>New Chat</Text>
+					</TouchableOpacity>
+
+					<Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginBottom: 10, paddingLeft: 4 }}>
+						Recent History
+					</Text>
+
+					<FlatList
+						data={sessions}
+						keyExtractor={item => item.sessionId}
+						renderItem={({ item }) => (
+							<TouchableOpacity
+								onPress={() => loadSessionMessages(item.sessionId)}
+								style={{
+									paddingVertical: 12, paddingHorizontal: 12,
+									borderRadius: 10,
+									backgroundColor: currentSessionId === item.sessionId ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') : 'transparent',
+									marginBottom: 4
+								}}
+							>
+								<Text numberOfLines={1} style={{ fontSize: 15, color: colors.text, fontWeight: currentSessionId === item.sessionId ? '600' : '400' }}>
+									{item.title}
+								</Text>
+								<Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
+									{new Date(item.updatedAt).toLocaleDateString()}
+								</Text>
+							</TouchableOpacity>
+						)}
 					/>
 				</View>
-				<TouchableOpacity
-					onPress={sendMessage}
-					disabled={!input.trim()}
-					style={{
-						backgroundColor: input.trim() ? colors.primary : colors.card,
-						width: 44, height: 44, borderRadius: 22, marginLeft: 12,
-						alignItems: 'center', justifyContent: 'center',
-						borderWidth: input.trim() ? 0 : 1, borderColor: colors.border
-					}}>
-					<Text style={{ fontSize: 20, color: input.trim() ? '#fff' : colors.textSecondary }}>➤</Text>
-				</TouchableOpacity>
-			</View>
+			</Animated.View>
 		</KeyboardAvoidingView>
 	);
 }

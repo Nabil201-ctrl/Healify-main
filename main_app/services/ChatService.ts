@@ -5,7 +5,7 @@ import api from '../api/api';
  */
 export const toggleChatBookmark = async (sessionId: string, isBookmarked: boolean) => {
     try {
-        const response = await api.post(`http://localhost:3001/bookmark/${sessionId}`, {
+        const response = await api.post(`https://healify-chat.onrender.com/bookmark/${sessionId}`, {
             isBookmarked,
         });
         return response.data;
@@ -20,7 +20,7 @@ export const toggleChatBookmark = async (sessionId: string, isBookmarked: boolea
  */
 export const getBookmarkedChats = async (userId: string) => {
     try {
-        const response = await api.get(`http://localhost:3001/bookmarks/${userId}`);
+        const response = await api.get(`https://healify-chat.onrender.com/bookmarks/${userId}`);
         return response.data;
     } catch (error) {
         console.error('[ChatService] Failed to fetch bookmarks:', error);
@@ -66,6 +66,32 @@ export const getChatHistory = async (userId: string) => {
         return response.data;
     } catch (error) {
         console.error('[ChatService] Failed to get chat history:', error);
+        throw error;
+    }
+};
+
+/**
+ * Get all chat sessions for a user
+ */
+export const getChatSessions = async (userId: string) => {
+    try {
+        const response = await api.get(`/chat/sessions/${userId}`);
+        return response.data;
+    } catch (error) {
+        console.error('[ChatService] Failed to get chat sessions:', error);
+        throw error;
+    }
+};
+
+/**
+ * Get messages for a specific session
+ */
+export const getSessionMessages = async (sessionId: string) => {
+    try {
+        const response = await api.get(`/chat/session/${sessionId}/messages`);
+        return response.data;
+    } catch (error) {
+        console.error('[ChatService] Failed to get session messages:', error);
         throw error;
     }
 };

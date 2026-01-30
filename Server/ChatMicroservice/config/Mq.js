@@ -8,6 +8,8 @@ const RESPONSE_QUEUE = "chat_responses";
 const AI_CONTEXT_QUEUE = "ai_context_update";
 const AI_CONTEXT_REQUEST_QUEUE = "ai_context_request";
 const HISTORY_REQUEST_QUEUE = "chat_history_request";
+const SESSION_LIST_REQUEST_QUEUE = "chat_session_list_request";
+const SESSION_MESSAGES_REQUEST_QUEUE = "chat_session_messages_request";
 
 let connection = null;
 let channel = null;
@@ -23,6 +25,8 @@ async function EstablishConnection() {
         await channel.assertQueue(AI_CONTEXT_QUEUE, { durable: true });
         await channel.assertQueue(AI_CONTEXT_REQUEST_QUEUE, { durable: true });
         await channel.assertQueue(HISTORY_REQUEST_QUEUE, { durable: true });
+        await channel.assertQueue('chat_session_list_request', { durable: true });
+        await channel.assertQueue('chat_session_messages_request', { durable: true });
 
         console.log("Connected to RabbitMQ and queues asserted");
         return channel;
@@ -54,4 +58,4 @@ async function publishResponse(response) {
     }
 }
 
-export { EstablishConnection, getChannel, publishResponse, CHAT_QUEUE, RESPONSE_QUEUE, AI_CONTEXT_QUEUE, AI_CONTEXT_REQUEST_QUEUE, HISTORY_REQUEST_QUEUE };
+export { EstablishConnection, getChannel, publishResponse, CHAT_QUEUE, RESPONSE_QUEUE, AI_CONTEXT_QUEUE, AI_CONTEXT_REQUEST_QUEUE, HISTORY_REQUEST_QUEUE, SESSION_LIST_REQUEST_QUEUE, SESSION_MESSAGES_REQUEST_QUEUE };

@@ -12,7 +12,7 @@ import tw from 'twrnc';
 // Helper to fetch full session details including health data
 const getSessionDetails = async (sessionId: string) => {
     const token = await AsyncStorage.getItem('doctorAccessToken');
-    const API_URL = 'http://localhost:3001';
+    const API_URL = 'https://healify-chat.onrender.com';
 
     // Get health data via the doctor endpoint
     const response = await axios.get(`${API_URL}/doctor/patient-health/${sessionId}`, {

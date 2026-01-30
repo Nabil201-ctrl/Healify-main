@@ -1,5 +1,5 @@
 import express from "express";
-import { EstablishConnection, getChannel, publishResponse, CHAT_QUEUE, AI_CONTEXT_QUEUE, AI_CONTEXT_REQUEST_QUEUE, HISTORY_REQUEST_QUEUE } from "./config/Mq.js";
+import { EstablishConnection, getChannel, publishResponse, CHAT_QUEUE, AI_CONTEXT_QUEUE, AI_CONTEXT_REQUEST_QUEUE, HISTORY_REQUEST_QUEUE, SESSION_LIST_REQUEST_QUEUE, SESSION_MESSAGES_REQUEST_QUEUE } from "./config/Mq.js";
 import { createRedisConnection, cacheResponse, getCachedResponse } from "./config/Redis.js";
 
 
@@ -18,6 +18,8 @@ async function initializeServices() {
         consumeChatRequests();
         consumeAIContextUpdates();
         consumeHistoryRequests();
+        consumeSessionRequests();
+        consumeSessionMessagesRequests();
     } catch (error) {
         console.error("Failed to initialize services:", error);
         process.exit(1);
@@ -118,7 +120,67 @@ async function consumeHistoryRequests() {
             );
 
             channel.ack(msg);
+            channel.ack(msg);
         }
+    });
+}
+
+// RPC Provider: Serve User Sessions
+async function consumeSessionRequests() {
+    const channel = getChannel();
+    channel.consume(SESSION_LIST_REQUEST_QUEUE, async (msg) => {
+        if (msg) {
+            const content = JSON.parse(msg.content.toString());
+            console.log("Received session list request:", content);
+
+            const userId = content.userId;
+
+            const sessions = await ChatSession.find({ userId })
+                .sort({ updatedAt: -1 })
+                .limit(50);
+
+            channel.sendToQueue(
+                msg.properties.replyTo,
+                Buffer.from(JSON.stringify({ sessions })),
+                { correlationId: msg.properties.correlationId }
+            );
+
+            channel.ack(msg);
+        }
+    });
+}
+
+// RPC Provider: Serve Session Messages
+async function consumeSessionMessagesRequests() {
+    const channel = getChannel();
+    channel.consume(SESSION_MESSAGES_REQUEST_QUEUE, async (msg) => {
+        if (msg) {
+            const content = JSON.parse(msg.content.toString());
+            console.log("Received session messages request:", content);
+
+            const sessionId = content.sessionId;
+
+            const messages = await ChatMessage.find({ sessionId }).sort({ timestamp: 1 });
+
+            const formattedMessages = messages.map(m => ({
+                id: m._id,
+                author: m.author === 'user' ? 'me' : (m.author === 'doctor' ? 'doctor' : 'other'),
+                text: m.text,
+                timestamp: m.timestamp,
+                metadata: m.metadata
+            }));
+
+            channel.sendToQueue(
+                msg.properties.replyTo,
+                Buffer.from(JSON.stringify({ messages: formattedMessages })),
+                { correlationId: msg.properties.correlationId }
+            );
+
+            channel.ack(msg);
+        }
+    });
+}
+
     });
 }
 
@@ -254,6 +316,31 @@ async function consumeChatRequests() {
                         text: message,
                         timestamp: new Date()
                     });
+
+                    // Update session timestamp and title if new
+                    const session = await ChatSession.findOne({ sessionId });
+                    if (session) {
+                        session.updatedAt = new Date();
+                        // If it's a new session (generic title) and this is the first message, generate a title
+                        if (session.title === 'New Chat' || !session.title) {
+                            // Simple title generation: First 30 chars of message
+                            let newTitle = message.substring(0, 30);
+                            if (message.length > 30) newTitle += '...';
+                            session.title = newTitle;
+                        }
+                        await session.save();
+                    } else {
+                        // Create session if it doesn't exist (though usually it should be created before sending)
+                        let title = message.substring(0, 30);
+                        if (message.length > 30) title += '...';
+
+                        await ChatSession.create({
+                            sessionId,
+                            userId,
+                            title,
+                            updatedAt: new Date()
+                        });
+                    }
 
                     // NOTIFY ASSIGNED DOCTOR
                     try {
@@ -404,7 +491,53 @@ app.get("/bookmarks/:userId", async (req, res) => {
             error: error.message
         });
     }
+} catch (error) {
+    console.error("Error fetching bookmarks:", error);
+    res.status(500).json({
+        success: false,
+        message: "Failed to fetch bookmarks",
+        error: error.message
+    });
+}
 });
+
+// Get user chat sessions
+app.get("/chat/sessions/:userId", async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const sessions = await ChatSession.find({ userId })
+            .sort({ updatedAt: -1 })
+            .limit(50);
+
+        res.json({ success: true, sessions });
+    } catch (error) {
+        console.error("Error fetching sessions:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get messages for a specific session
+app.get("/chat/session/:sessionId/messages", async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const messages = await ChatMessage.find({ sessionId }).sort({ timestamp: 1 });
+
+        res.json({
+            success: true,
+            messages: messages.map(m => ({
+                id: m._id,
+                author: m.author === 'user' ? 'me' : (m.author === 'doctor' ? 'doctor' : 'other'),
+                text: m.text,
+                timestamp: m.timestamp,
+                metadata: m.metadata
+            }))
+        });
+    } catch (error) {
+        console.error("Error fetching session messages:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 
 // ============================================
 // DOCTOR AUTHENTICATION & REVIEW ENDPOINTS
