@@ -164,12 +164,12 @@ export function optimizeForInfermedica(userProfile, message) {
 }
 
 /**
- * Optimize data for OpenAI API
+ * Optimize data for AI API
  * @param {object} userProfile - User profile
  * @param {object} healthData - Health data
- * @returns {string} Optimized context for OpenAI
+ * @returns {string} Optimized context for AI
  */
-export function optimizeForOpenAI(userProfile, healthData) {
+export function optimizeForAI(userProfile, healthData) {
     return formatForAI(userProfile, healthData);
 }
 

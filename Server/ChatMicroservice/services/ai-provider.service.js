@@ -1,4 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import dotenv from "dotenv";
+dotenv.config();
 
 const MODEL_HINT = "Use concise, empathetic medical guidance. Do not diagnose; suggest next steps and safety flags.";
 
@@ -57,11 +59,15 @@ async function callInfermedica(message, userContext) {
 
 async function callGemini(message, userContext, conversationHistory = []) {
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return null;
+    if (!apiKey) {
+        console.error("DEBUG: GEMINI_API_KEY is missing in process.env");
+        return null;
+    }
+    console.log("DEBUG: GEMINI_API_KEY found, attempting to call Gemini...");
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         // Build health profile section if available
         const healthProfile = userContext ? buildHealthProfile(userContext) : 'No health profile available';
@@ -126,127 +132,16 @@ ${getQueryTypeGuidance(queryType)}`;
             text,
             confidence: 0.9,
             source: 'gemini',
-            metadata: { model: "gemini-pro", queryType }
+            metadata: { model: "gemini-1.5-flash", queryType }
         };
 
     } catch (err) {
-        console.error('Gemini call failed:', err);
+        console.error('DEBUG: Gemini call failed with error:', err);
         return null; // Fallback to other providers
     }
 }
 
-async function callOpenAI(message, userContext, conversationHistory = []) {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) return null;
 
-    // Build health profile section if available
-    const healthProfile = userContext ? buildHealthProfile(userContext) : 'No health profile available';
-
-    // Detect query type for specialized responses
-    const queryType = detectQueryType(message);
-
-    const systemPrompt = `You are Healify Assistant, an empathetic and knowledgeable health companion.
-
-CORE GUIDELINES:
-- Be warm, supportive, and conversational while maintaining professionalism
-- Provide actionable, practical health guidance
-- Never diagnose conditions - guide users toward appropriate care
-- Use simple language, avoid medical jargon
-- Keep responses concise (under 150 words) but helpful
-- Include relevant safety warnings when appropriate
-- Remember context from previous messages in this conversation
-
-RESPONSE FORMAT:
-- Start with acknowledgment of user's concern
-- Provide clear, structured guidance with bullet points when helpful
-- End with a supportive next step or question
-- Always include the medical disclaimer
-
-USER HEALTH PROFILE:
-${healthProfile}
-
-QUERY TYPE: ${queryType}
-${getQueryTypeGuidance(queryType)}`;
-
-    // Build conversation messages
-    const messages = [
-        { role: 'system', content: systemPrompt }
-    ];
-
-    // Add conversation history (last 6 messages for context)
-    if (conversationHistory && conversationHistory.length > 0) {
-        const recentHistory = conversationHistory.slice(-6);
-        for (const msg of recentHistory) {
-            messages.push({
-                role: msg.author === 'user' ? 'user' : 'assistant',
-                content: msg.text
-            });
-        }
-    }
-
-    // Add current message
-    messages.push({ role: 'user', content: message });
-
-    try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30000);
-
-        const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-                temperature: 0.5,
-                max_tokens: 400,
-                messages
-            }),
-            signal: controller.signal
-        });
-
-        clearTimeout(timeout);
-
-        if (!resp.ok) {
-            const errText = await resp.text();
-            throw new Error(`OpenAI HTTP ${resp.status}: ${errText}`);
-        }
-
-        const data = await resp.json();
-        let text = data?.choices?.[0]?.message?.content?.trim();
-
-        // Ensure medical disclaimer is present
-        if (text && !text.includes('not a doctor') && !text.includes('medical professional') && !text.includes('healthcare provider')) {
-            text += '\n\n⚠️ *I\'m an AI assistant, not a doctor. Please consult a healthcare professional for medical advice.*';
-        }
-
-        return {
-            text: text || 'I want to make sure I guide you correctly. Could you share a bit more detail?',
-            confidence: 0.85,
-            source: 'openai',
-            metadata: { model: data?.model, usage: data?.usage, queryType }
-        };
-    } catch (err) {
-        console.error('OpenAI call failed:', err);
-
-        if (err.name === 'AbortError') {
-            return {
-                text: 'I\'m taking longer than usual to think. Let me try again - could you resend your message?',
-                confidence: 0.3,
-                source: 'openai-timeout',
-                needsDoctorReview: true
-            };
-        }
-
-        return {
-            text: 'I\'m having trouble connecting right now. Please try again in a moment.',
-            confidence: 0.5,
-            source: 'openai-fallback',
-            needsDoctorReview: true
-        };
-    }
-}
 
 // Mock AI for when no keys are present
 function callMockAI(message, history) {
@@ -333,11 +228,7 @@ export async function generateMedicalResponse(message, userContext, conversation
     } 
     */
 
-    // 3. Try OpenAI (Secondary/Fallback)
-    if (process.env.OPENAI_API_KEY) {
-        const openai = await callOpenAI(message, userContext, conversationHistory);
-        if (openai) return openai;
-    }
+
 
     // 4. Mock AI (Dev Mode / No Keys)
     // If we get here, no AI services are configured. Use a smart mock response.

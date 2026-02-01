@@ -12,7 +12,7 @@ This microservice handles AI chat processing for the Healify platform using Rabb
 ## Features
 
 - ✅ Consumes chat requests from RabbitMQ queue
-- ✅ Processes messages with AI (Infermedica > OpenAI > safe fallback)
+- ✅ Processes messages with AI (Infermedica > Gemini > safe fallback)
 - ✅ Caches responses in Redis for performance
 - ✅ Publishes AI responses back to Main Server via RabbitMQ
 - ✅ Health check endpoint
@@ -44,8 +44,7 @@ REDIS_URL=redis://localhost:6379
 # INFERMEDICA_APP_ID=your-app-id
 # INFERMEDICA_APP_KEY=your-app-key
 # INFERMEDICA_MODEL=infermedica-en
-# OPENAI_API_KEY=your-openai-key
-# OPENAI_MODEL=gpt-4o-mini
+
 ```
 
 ### Running the Service
@@ -119,7 +118,7 @@ Response:
 AI orchestration now lives in `services/ai-provider.service.js` and follows this order:
 
 1. **Infermedica** (if `INFERMEDICA_APP_ID`/`INFERMEDICA_APP_KEY` are set)
-2. **OpenAI Chat Completions** (if `OPENAI_API_KEY` is set; defaults to `gpt-4o-mini`)
+2. **Gemini** (if `GEMINI_API_KEY` is set)
 3. **Heuristic fallback** with safety-first messaging and doctor-review flagging
 
 To adjust prompts or models, edit `services/ai-provider.service.js`. The `processAIRequest` function already consumes this provider and handles safety and review flagging.
