@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "623573567264",
+    "project_id": "healthify-c4a64",
+    "storage_bucket": "healthify-c4a64.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:623573567264:android:cbe67f63b3eb29c1927945",
+        "android_client_info": {
+          "package_name": "com.anonymous.Health1CareApp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAcfPWgEa5Rd-P3N_-LRQwv0vaiK7oqc64"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
