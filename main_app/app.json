@@ -20,8 +20,7 @@
         "NSHealthShareUsageDescription": "Read heart rate and steps to track your health.",
         "NSHealthUpdateUsageDescription": "Update your health data.",
         "NSUserTrackingUsageDescription": "We need permission to send you health alerts and chat notifications."
-      },
-      "googleServicesFile": "./GoogleService-Info.plist"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -31,7 +30,6 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.HealthCareApp",
-      "googleServicesFile": "./google-services.json",
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
@@ -65,22 +63,6 @@
         "expo-apple-authentication",
         {
           "appleTeamId": "YOUR_APPLE_TEAM_ID"
-        }
-      ],
-      [
-        "@react-native-firebase/app",
-        {
-          "ios": {
-            "useFrameworks": "static"
-          }
-        }
-      ],
-      [
-        "@react-native-firebase/messaging",
-        {
-          "ios": {
-            "useFrameworks": "static"
-          }
         }
       ],
       "expo-font"
