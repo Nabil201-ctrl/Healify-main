@@ -38,22 +38,22 @@ export default function ActivityChart() {
     }, []);
 
     const chartConfig = {
-        backgroundColor: isDark ? '#1f2937' : '#ffffff',
-        backgroundGradientFrom: isDark ? '#1f2937' : '#ffffff',
-        backgroundGradientTo: isDark ? '#374151' : '#ffffff',
+        backgroundColor: isDark ? '#1e293b' : '#ffffff',
+        backgroundGradientFrom: isDark ? '#1e293b' : '#ffffff',
+        backgroundGradientTo: isDark ? '#1e293b' : '#ffffff',
         decimalPlaces: 0,
         color: (opacity = 1) => isDark
-            ? `rgba(96, 165, 250, ${opacity})`
-            : `rgba(59, 130, 246, ${opacity})`,
+            ? `rgba(129, 140, 248, ${opacity})` // Indigo 400
+            : `rgba(79, 70, 229, ${opacity})`, // Indigo 600
         labelColor: (opacity = 1) => isDark
-            ? `rgba(209, 213, 219, ${opacity})`
-            : `rgba(107, 114, 128, ${opacity})`,
+            ? `rgba(148, 163, 184, ${opacity})`
+            : `rgba(100, 116, 139, ${opacity})`,
         style: {
             borderRadius: 16,
         },
         barPercentage: 0.5,
         propsForBackgroundLines: {
-            stroke: isDark ? '#374151' : '#e5e7eb',
+            stroke: isDark ? '#334155' : '#e2e8f0',
             strokeWidth: 1,
         },
         propsForLabels: {

@@ -95,10 +95,10 @@ export default function ChatScreen() {
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 65 : 0}
                 style={styles.keyboardAvoidingView}
             >
-                <View style={[styles.inputContainer, { marginBottom: Platform.OS === 'ios' ? 10 : 20 }]}>
+                <View style={[styles.inputContainer, { marginBottom: Platform.OS === 'ios' ? 65 : 75 }]}>
                     <View style={[styles.inputWrapper, {
                         backgroundColor: isDark ? '#1f2937' : '#ffffff',
                         borderColor: isDark ? '#374151' : '#e5e7eb',

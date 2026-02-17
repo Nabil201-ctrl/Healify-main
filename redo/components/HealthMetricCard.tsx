@@ -1,14 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useColorScheme } from '@/components/useColorScheme';
+import Colors from '@/constants/Colors';
 
 interface HealthMetricCardProps {
     title: string;
     value: string;
     unit: string;
     icon: string;
-    gradientColors: [string, string];
+    accentColor: string; // Color for icon/trend, not background
     trend: 'up' | 'down' | 'stable';
     trendValue: string;
 }
@@ -18,56 +18,50 @@ export default function HealthMetricCard({
     value,
     unit,
     icon,
-    gradientColors,
+    accentColor,
     trend,
     trendValue
 }: HealthMetricCardProps) {
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
+    const colors = Colors[colorScheme ?? 'light'];
 
     const getTrendIcon = () => {
         switch (trend) {
-            case 'up': return '↗️';
-            case 'down': return '↘️';
+            case 'up': return '↗';
+            case 'down': return '↘';
             case 'stable': return '→';
             default: return '→';
         }
     };
 
     const getTrendColor = () => {
+        // We can use the accent color for the trend too, or standard semantic colors
         switch (trend) {
-            case 'up': return isDark ? '#4ade80' : '#16a34a';
-            case 'down': return isDark ? '#f87171' : '#dc2626';
-            case 'stable': return isDark ? '#9ca3af' : '#4b5563';
-            default: return isDark ? '#9ca3af' : '#4b5563';
+            case 'up': return colors.success;
+            case 'down': return colors.error;
+            case 'stable': return colors.textSecondary;
+            default: return colors.textSecondary;
         }
     };
 
     return (
         <View style={styles.wrapper}>
-            <LinearGradient
-                colors={gradientColors}
-                style={styles.container}
-            >
+            <View style={[
+                styles.container,
+                {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                }
+            ]}>
                 <View style={styles.header}>
-                    <Text style={styles.title}>
-                        {title}
-                    </Text>
-                    <Text style={styles.icon}>
-                        {icon}
-                    </Text>
-                </View>
-
-                <Text style={styles.value}>
-                    {value}
-                </Text>
-
-                <View style={styles.footer}>
-                    <Text style={styles.unit}>
-                        {unit}
-                    </Text>
-                    <View style={styles.trendContainer}>
-                        <Text style={styles.trendIcon}>
+                    <View style={[styles.iconContainer, { backgroundColor: isDark ? `${accentColor}20` : `${accentColor}10` }]}>
+                        <Text style={[styles.icon, { color: accentColor }]}>
+                            {icon}
+                        </Text>
+                    </View>
+                    <View style={[styles.trendBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
+                        <Text style={[styles.trendIcon, { color: getTrendColor() }]}>
                             {getTrendIcon()}
                         </Text>
                         <Text style={[styles.trendValue, { color: getTrendColor() }]}>
@@ -75,7 +69,19 @@ export default function HealthMetricCard({
                         </Text>
                     </View>
                 </View>
-            </LinearGradient>
+
+                <View style={styles.content}>
+                    <Text style={[styles.title, { color: colors.textSecondary }]}>
+                        {title}
+                    </Text>
+                    <Text style={[styles.value, { color: colors.text }]}>
+                        {value}
+                    </Text>
+                    <Text style={[styles.unit, { color: colors.textSecondary }]}>
+                        {unit}
+                    </Text>
+                </View>
+            </View>
         </View>
     );
 }
@@ -86,59 +92,66 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     container: {
-        borderRadius: 16,
+        borderRadius: 20,
         padding: 16,
+        borderWidth: 1,
+        height: 160,
+        justifyContent: 'space-between',
+        // Subtle shadow
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
         elevation: 2,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: 8,
     },
-    title: {
-        color: 'rgba(255, 255, 255, 0.9)',
-        fontSize: 12,
-        fontWeight: '500',
-        fontFamily: 'BricolageGrotesque',
+    iconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     icon: {
-        color: 'rgba(255, 255, 255, 0.9)',
-        fontSize: 18,
+        fontSize: 20,
     },
-    value: {
-        color: 'white',
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginBottom: 4,
-        fontFamily: 'BricolageGrotesque',
-    },
-    footer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    unit: {
-        color: 'rgba(255, 255, 255, 0.9)',
-        fontSize: 12,
-        fontFamily: 'BricolageGrotesque',
-    },
-    trendContainer: {
+    trendBadge: {
         flexDirection: 'row',
         alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
     },
     trendIcon: {
-        color: 'white',
         fontSize: 12,
         marginRight: 4,
     },
     trendValue: {
         fontSize: 12,
+        fontWeight: '600',
+        fontFamily: 'BricolageGrotesque',
+    },
+    content: {
+        marginTop: 12,
+    },
+    title: {
+        fontSize: 14,
+        fontWeight: '500',
+        marginBottom: 4,
+        fontFamily: 'BricolageGrotesque',
+    },
+    value: {
+        fontSize: 24,
         fontWeight: 'bold',
+        marginBottom: 2,
+        fontFamily: 'BricolageGrotesque',
+    },
+    unit: {
+        fontSize: 12,
         fontFamily: 'BricolageGrotesque',
     },
 });

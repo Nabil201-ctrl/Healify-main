@@ -2,14 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, ScrollView, RefreshControl, Text, TouchableOpacity } from 'react-native';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
-import { AuthService } from '@/services/auth.service';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import HealthMetricCard from '@/components/HealthMetricCard';
 import { HeartRateChart } from '@/components/HeartRateChart';
 import { SleepChart } from '@/components/SleepChart';
 import ActivityChart from '@/components/ActivityChart';
+import { Ionicons } from '@expo/vector-icons';
 
-// Simplistic user type for now
 interface User {
   id: string;
   firstName: string;
@@ -20,25 +19,15 @@ export default function HomeScreen() {
   const isDark = colorScheme === 'dark';
   const colors = Colors[colorScheme ?? 'light'];
 
-  const [user, setUser] = useState<User | null>({ id: '123', firstName: 'User' }); // Mock default
+  const [user, setUser] = useState<User | null>({ id: '123', firstName: 'Nabil' });
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    loadUser();
+    // loadUser();
   }, []);
-
-  const loadUser = async () => {
-    // try {
-    //   const userData = await AuthService.getUser();
-    //   if (userData) setUser(userData);
-    // } catch (e) {
-    //   console.log("Failed to load user");
-    // }
-  };
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
-    // Simulate refetching data
     setTimeout(() => {
       setRefreshing(false);
     }, 2000);
@@ -53,47 +42,57 @@ export default function HomeScreen() {
       >
         <DashboardHeader
           userName={user?.firstName || 'User'}
-          lastSyncTime="2 min ago"
+          lastSyncTime="Just now"
         />
 
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          Today's Overview
-        </Text>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Overview
+          </Text>
+          <TouchableOpacity>
+            <Text style={{ color: colors.tint, fontFamily: 'BricolageGrotesque', fontSize: 14 }}>See Details</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.metricsGrid}>
+          {/* 
+            Refactored Cards:
+            - Removed gradientColors prop
+            - Added accentColor prop
+          */}
           <HealthMetricCard
             title="Calories"
             value="2,456"
-            unit="kcal burned"
+            unit="kcal"
             icon="🔥"
-            gradientColors={isDark ? ['#7f1d1d', '#991b1b'] : ['#ef4444', '#dc2626']}
+            accentColor={colors.error} // Red accent
             trend="up"
             trendValue="12%"
           />
           <HealthMetricCard
             title="Steps"
             value="8,547"
-            unit="steps today"
+            unit="steps"
             icon="👟"
-            gradientColors={isDark ? ['#1e3a8a', '#1e40af'] : ['#3b82f6', '#2563eb']}
+            accentColor={colors.primary} // Indigo accent
             trend="down"
             trendValue="5%"
           />
           <HealthMetricCard
             title="Heart Rate"
             value="72"
-            unit="bpm average"
+            unit="bpm"
             icon="❤️"
-            gradientColors={isDark ? ['#831843', '#9d174d'] : ['#ec4899', '#db2777']}
+            accentColor={colors.secondary} // Violet accent
             trend="stable"
             trendValue="0%"
           />
           <HealthMetricCard
             title="Active Time"
             value="2.5"
-            unit="hours active"
+            unit="hrs"
             icon="⚡"
-            gradientColors={isDark ? ['#78350f', '#92400e'] : ['#f59e0b', '#d97706']}
+            accentColor={colors.warning} // Amber accent
             trend="up"
             trendValue="18%"
           />
@@ -103,31 +102,35 @@ export default function HomeScreen() {
         <ActivityChart />
         <SleepChart />
 
-        {/* More Metrics Section */}
-        <View style={[styles.moreMetricsContainer, { backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb' }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>More Metrics</Text>
+        {/* More Metrics Section - Cleaned up */}
+        <View style={[styles.moreMetricsContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Quick Stats</Text>
 
           <View style={styles.moreMetricsRow}>
-            <MetricBox label="Distance" value="6.8 km" color="cyan" isDark={isDark} />
-            <MetricBox label="Floors" value="12" color="teal" isDark={isDark} />
+            <MetricBox label="Distance" value="6.8 km" icon="map-outline" color={colors.primary} isDark={isDark} />
+            <MetricBox label="Floors" value="12" icon="layers-outline" color={colors.secondary} isDark={isDark} />
           </View>
           <View style={styles.moreMetricsRow}>
-            <MetricBox label="Stress Level" value="Low" color="orange" isDark={isDark} />
-            <MetricBox label="Body Battery" value="78%" color="violet" isDark={isDark} />
+            <MetricBox label="Stress" value="Low" icon="pulse-outline" color={colors.success} isDark={isDark} />
+            <MetricBox label="Recovery" value="78%" icon="battery-charging-outline" color={colors.tint} isDark={isDark} />
           </View>
         </View>
 
-        {/* Insights Section */}
-        {/* Simplified gradient background not using LinearGradient here to save import, or could use View style */}
-        <View style={styles.insightsContainer}>
-          <Text style={styles.insightsTitle}>💡 Today's Insights</Text>
-          <View style={styles.insightItem}>
-            <Text style={styles.insightLabel}>Great Activity!</Text>
-            <Text style={styles.insightText}>You're 15% more active than last Monday. Keep it up!</Text>
+        {/* Insights Section - Unified */}
+        <View style={[styles.insightsContainer, { backgroundColor: isDark ? '#1e1b4b' : '#e0e7ff' }]}>
+          <View style={styles.insightsHeader}>
+            <Ionicons name="bulb" size={20} color={isDark ? '#818cf8' : '#4f46e5'} />
+            <Text style={[styles.insightsTitle, { color: isDark ? '#e0e7ff' : '#312e81' }]}>Today's Insights</Text>
           </View>
-          <View style={styles.insightItem}>
-            <Text style={styles.insightLabel}>Hydration Reminder</Text>
-            <Text style={styles.insightText}>Don't forget to drink water. Target: 2L/day</Text>
+
+          <View style={[styles.insightItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'white' }]}>
+            <Text style={[styles.insightLabel, { color: isDark ? '#c7d2fe' : '#4338ca' }]}>Trending Up</Text>
+            <Text style={[styles.insightText, { color: isDark ? '#e0e7ff' : '#3730a3' }]}>You're 15% more active than last Monday. Great momentum!</Text>
+          </View>
+
+          <View style={[styles.insightItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'white' }]}>
+            <Text style={[styles.insightLabel, { color: isDark ? '#c7d2fe' : '#4338ca' }]}>Goal Check</Text>
+            <Text style={[styles.insightText, { color: isDark ? '#e0e7ff' : '#3730a3' }]}>You need 1,453 more steps to hit your daily target.</Text>
           </View>
         </View>
 
@@ -136,26 +139,21 @@ export default function HomeScreen() {
   );
 }
 
-const MetricBox = ({ label, value, color, isDark }: { label: string, value: string, color: string, isDark: boolean }) => {
-  // Simple color mapping
-  const getBgColor = () => {
-    if (color === 'cyan') return isDark ? '#164e63' : '#ecfeff'; // cyan-900 / cyan-50
-    if (color === 'teal') return isDark ? '#134e4a' : '#f0fdfa';
-    if (color === 'orange') return isDark ? '#7c2d12' : '#fff7ed';
-    return isDark ? '#4c1d95' : '#f5f3ff'; // violet
-  };
-
-  const getTextColor = () => {
-    if (color === 'cyan') return isDark ? '#a5f3fc' : '#0e7490';
-    if (color === 'teal') return isDark ? '#99f6e4' : '#0f766e';
-    if (color === 'orange') return isDark ? '#fdba74' : '#c2410c';
-    return isDark ? '#ddd6fe' : '#7c3aed';
-  };
-
+const MetricBox = ({ label, value, icon, color, isDark }: { label: string, value: string, icon: any, color: string, isDark: boolean }) => {
   return (
-    <View style={[styles.metricBox, { backgroundColor: getBgColor() }]}>
-      <Text style={[styles.metricLabel, { color: getTextColor() }]}>{label}</Text>
-      <Text style={[styles.metricValue, { color: getTextColor() }]}>{value}</Text>
+    <View style={[
+      styles.metricBox,
+      {
+        backgroundColor: isDark ? `${color}15` : `${color}10`, // Very subtle tint
+        borderColor: isDark ? `${color}30` : `${color}20`,
+        borderWidth: 1,
+      }
+    ]}>
+      <View style={{ marginBottom: 8 }}>
+        <Ionicons name={icon} size={20} color={color} />
+      </View>
+      <Text style={[styles.metricLabel, { color: isDark ? '#94a3b8' : '#64748b' }]}>{label}</Text>
+      <Text style={[styles.metricValue, { color: isDark ? '#f1f5f9' : '#1e293b' }]}>{value}</Text>
     </View>
   );
 }
@@ -168,11 +166,16 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginLeft: 4,
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 12,
-    marginLeft: 4,
     fontFamily: 'BricolageGrotesque',
   },
   metricsGrid: {
@@ -182,15 +185,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   moreMetricsContainer: {
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 24,
+    padding: 20,
     marginBottom: 24,
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
   cardTitle: {
     fontSize: 18,
@@ -205,50 +203,52 @@ const styles = StyleSheet.create({
   },
   metricBox: {
     flex: 1,
-    padding: 12,
-    borderRadius: 12,
-    marginHorizontal: 4,
+    padding: 16,
+    borderRadius: 16,
+    marginHorizontal: 6,
   },
   metricLabel: {
     fontSize: 12,
     fontWeight: '500',
     marginBottom: 4,
+    fontFamily: 'BricolageGrotesque',
   },
   metricValue: {
     fontSize: 18,
     fontWeight: 'bold',
-  },
-  insightsContainer: {
-    backgroundColor: '#6366f1', // Indogo-500 fallback
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    elevation: 4,
-  },
-  insightsTitle: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
     fontFamily: 'BricolageGrotesque',
   },
+  insightsContainer: {
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 100, // Space for tab bar
+  },
+  insightsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  insightsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontFamily: 'BricolageGrotesque',
+    marginLeft: 8,
+  },
   insightItem: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
   },
   insightLabel: {
-    color: 'white',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   insightText: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 12,
+    fontSize: 14,
+    fontFamily: 'BricolageGrotesque',
+    lineHeight: 20,
   },
 });

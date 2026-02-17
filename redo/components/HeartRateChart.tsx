@@ -39,27 +39,27 @@ export function HeartRateChart() {
     }, []);
 
     const chartConfig = {
-        backgroundColor: isDark ? '#1f2937' : '#ffffff',
-        backgroundGradientFrom: isDark ? '#1f2937' : '#ffffff',
-        backgroundGradientTo: isDark ? '#374151' : '#ffffff',
+        backgroundColor: isDark ? '#1e293b' : '#ffffff', // Slate 800 or White
+        backgroundGradientFrom: isDark ? '#1e293b' : '#ffffff',
+        backgroundGradientTo: isDark ? '#1e293b' : '#ffffff',
         decimalPlaces: 0,
-        color: (opacity = 1) => `rgba(236, 72, 153, ${opacity})`, // Pink color matching main app
+        color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`, // Indigo 500
         labelColor: (opacity = 1) => isDark
-            ? `rgba(209, 213, 219, ${opacity})`
-            : `rgba(107, 114, 128, ${opacity})`,
+            ? `rgba(148, 163, 184, ${opacity})` // Slate 400
+            : `rgba(100, 116, 139, ${opacity})`, // Slate 500
         style: {
             borderRadius: 16,
         },
         propsForDots: {
             r: '4',
             strokeWidth: '2',
-            stroke: '#ec4899',
+            stroke: '#6366f1', // Indigo 500
         },
         propsForLabels: {
             fontFamily: 'BricolageGrotesque',
         },
         propsForBackgroundLines: {
-            stroke: isDark ? '#374151' : '#e5e7eb',
+            stroke: isDark ? '#334155' : '#e2e8f0', // Slate 700 / 200
             strokeWidth: 1,
         },
     };

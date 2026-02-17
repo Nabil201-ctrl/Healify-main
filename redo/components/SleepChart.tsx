@@ -23,26 +23,29 @@ export function SleepChart() {
             [8, 1, 1],
             [7.5, 1, 0.5],
         ],
-        barColors: isDark ? ['#6366f1', '#8b5cf6', '#a78bfa'] : ['#4f46e5', '#8b5cf6', '#c084fc'],
+        // Indigo spectrum: Indigo-500, Indigo-400, Violet-400
+        barColors: isDark
+            ? ['#6366f1', '#818cf8', '#a78bfa']
+            : ['#4f46e5', '#6366f1', '#8b5cf6'],
         legend: ['Deep', 'Light', 'REM']
     };
 
     const chartConfig = {
-        backgroundColor: isDark ? '#1f2937' : '#ffffff',
-        backgroundGradientFrom: isDark ? '#1f2937' : '#ffffff',
-        backgroundGradientTo: isDark ? '#374151' : '#ffffff',
+        backgroundColor: isDark ? '#1e293b' : '#ffffff',
+        backgroundGradientFrom: isDark ? '#1e293b' : '#ffffff',
+        backgroundGradientTo: isDark ? '#1e293b' : '#ffffff',
         decimalPlaces: 1,
         color: (opacity = 1) => isDark
-            ? `rgba(209, 213, 219, ${opacity})`
-            : `rgba(107, 114, 128, ${opacity})`,
+            ? `rgba(148, 163, 184, ${opacity})`
+            : `rgba(100, 116, 139, ${opacity})`,
         labelColor: (opacity = 1) => isDark
-            ? `rgba(209, 213, 219, ${opacity})`
-            : `rgba(107, 114, 128, ${opacity})`,
+            ? `rgba(148, 163, 184, ${opacity})`
+            : `rgba(100, 116, 139, ${opacity})`,
         style: {
             borderRadius: 16,
         },
         propsForBackgroundLines: {
-            stroke: isDark ? '#374151' : '#e5e7eb',
+            stroke: isDark ? '#334155' : '#e2e8f0',
             strokeWidth: 1,
         },
         propsForLabels: {
