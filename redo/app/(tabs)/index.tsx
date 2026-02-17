@@ -55,17 +55,12 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.metricsGrid}>
-          {/* 
-            Refactored Cards:
-            - Removed gradientColors prop
-            - Added accentColor prop
-          */}
           <HealthMetricCard
             title="Calories"
             value="2,456"
             unit="kcal"
-            icon="🔥"
-            accentColor={colors.error} // Red accent
+            icon="flame"
+            accentColor={colors.tint}
             trend="up"
             trendValue="12%"
           />
@@ -73,8 +68,8 @@ export default function HomeScreen() {
             title="Steps"
             value="8,547"
             unit="steps"
-            icon="👟"
-            accentColor={colors.primary} // Indigo accent
+            icon="footsteps"
+            accentColor={colors.tint}
             trend="down"
             trendValue="5%"
           />
@@ -82,8 +77,8 @@ export default function HomeScreen() {
             title="Heart Rate"
             value="72"
             unit="bpm"
-            icon="❤️"
-            accentColor={colors.secondary} // Violet accent
+            icon="heart"
+            accentColor={colors.tint}
             trend="stable"
             trendValue="0%"
           />
@@ -91,8 +86,8 @@ export default function HomeScreen() {
             title="Active Time"
             value="2.5"
             unit="hrs"
-            icon="⚡"
-            accentColor={colors.warning} // Amber accent
+            icon="flash"
+            accentColor={colors.tint}
             trend="up"
             trendValue="18%"
           />

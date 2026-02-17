@@ -1,13 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useColorScheme } from '@/components/useColorScheme';
+import { Ionicons } from '@expo/vector-icons';
 import Colors from '@/constants/Colors';
+import { useColorScheme } from '@/components/useColorScheme';
 
 interface HealthMetricCardProps {
     title: string;
     value: string;
     unit: string;
-    icon: string;
+    icon: keyof typeof Ionicons.glyphMap;
     accentColor: string; // Color for icon/trend, not background
     trend: 'up' | 'down' | 'stable';
     trendValue: string;
@@ -28,10 +29,10 @@ export default function HealthMetricCard({
 
     const getTrendIcon = () => {
         switch (trend) {
-            case 'up': return '↗';
-            case 'down': return '↘';
-            case 'stable': return '→';
-            default: return '→';
+            case 'up': return 'arrow-up';
+            case 'down': return 'arrow-down';
+            case 'stable': return 'arrow-forward';
+            default: return 'arrow-forward';
         }
     };
 
@@ -56,14 +57,10 @@ export default function HealthMetricCard({
             ]}>
                 <View style={styles.header}>
                     <View style={[styles.iconContainer, { backgroundColor: isDark ? `${accentColor}20` : `${accentColor}10` }]}>
-                        <Text style={[styles.icon, { color: accentColor }]}>
-                            {icon}
-                        </Text>
+                        <Ionicons name={icon} size={24} color={accentColor} />
                     </View>
                     <View style={[styles.trendBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
-                        <Text style={[styles.trendIcon, { color: getTrendColor() }]}>
-                            {getTrendIcon()}
-                        </Text>
+                        <Ionicons name={getTrendIcon()} size={14} color={getTrendColor()} style={{ marginRight: 4 }} />
                         <Text style={[styles.trendValue, { color: getTrendColor() }]}>
                             {trendValue}
                         </Text>
@@ -116,9 +113,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    icon: {
-        fontSize: 20,
-    },
+
     trendBadge: {
         flexDirection: 'row',
         alignItems: 'center',
