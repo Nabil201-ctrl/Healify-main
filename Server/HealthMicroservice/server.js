@@ -68,6 +68,26 @@ const sleepData = {
     }
 };
 
+const quickStatsData = {
+    distance: "6.8 km",
+    floors: "12",
+    stress: "Low",
+    recovery: "78%"
+};
+
+const insightsData = [
+    {
+        label: "Trending Up",
+        text: "You're 15% more active than last Monday. Great momentum!",
+        type: "positive"
+    },
+    {
+        label: "Goal Check",
+        text: "You need 1,453 more steps to hit your daily target.",
+        type: "warning"
+    }
+];
+
 // RabbitMQ Consumer
 // MongoDB & Models
 import mongoose from 'mongoose';
@@ -235,6 +255,12 @@ async function consumeHealthRequests() {
                             break;
                         case 'sleep':
                             data = sleepData;
+                            break;
+                        case 'quick-stats':
+                            data = quickStatsData;
+                            break;
+                        case 'insights':
+                            data = insightsData;
                             break;
                         default:
                             throw new Error(`Unknown health data type: ${type}`);

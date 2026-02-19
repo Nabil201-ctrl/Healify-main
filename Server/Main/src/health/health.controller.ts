@@ -120,6 +120,60 @@ export class HealthController {
       );
     }
   }
+  123:
+    124: @UseGuards(JwtAuthGuard)
+  125:   @ApiBearerAuth('JWT-auth')
+  126:   @Get('quick-stats')
+  127:   @ApiOperation({ summary: 'Get user quick stats (distance, floors, etc.)' })
+  128:   @ApiResponse({ status: 200, description: 'Quick stats retrieved successfully' })
+  129: async getQuickStats(@Request() req) {
+    130: const userId = req.user.userId;
+    131:
+    132: try {
+      133: const cached = await this.cacheService.getHealthData(userId, 'quick-stats');
+      134: if (cached) {
+        135: return { ...cached, fromCache: true };
+        136:
+      }
+      137:
+      138: const data = await this.rabbitMQService.fetchHealthData('quick-stats');
+      139: await this.cacheService.cacheHealthData(userId, 'quick-stats', data, 300);
+      140: return { ...data, fromCache: false };
+      141:
+    } catch (error) {
+      142: console.error('[Health] Failed to fetch quick stats:', error);
+      143: throw new HttpException('Failed to fetch quick stats', HttpStatus.SERVICE_UNAVAILABLE);
+      144:
+    }
+    145:
+  }
+  146:
+    147: @UseGuards(JwtAuthGuard)
+  148:   @ApiBearerAuth('JWT-auth')
+  149:   @Get('insights')
+  150:   @ApiOperation({ summary: 'Get user health insights' })
+  151:   @ApiResponse({ status: 200, description: 'Insights retrieved successfully' })
+  152: async getInsights(@Request() req) {
+    153: const userId = req.user.userId;
+    154:
+    155: try {
+      156: const cached = await this.cacheService.getHealthData(userId, 'insights');
+      157: if (cached) {
+        158: return { insights: cached, fromCache: true };
+        159:
+      }
+      160:
+      161: const data = await this.rabbitMQService.fetchHealthData('insights');
+      162: await this.cacheService.cacheHealthData(userId, 'insights', data, 300);
+      163: return { insights: data, fromCache: false };
+      164:
+    } catch (error) {
+      165: console.error('[Health] Failed to fetch insights:', error);
+      166: throw new HttpException('Failed to fetch insights', HttpStatus.SERVICE_UNAVAILABLE);
+      167:
+    }
+    168:
+  }
 
   @Post('sync')
   @ApiOperation({ summary: 'Sync health data from mobile device' })

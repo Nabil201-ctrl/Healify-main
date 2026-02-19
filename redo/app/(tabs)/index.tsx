@@ -11,28 +11,56 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { router } from 'expo-router';
 
-interface User {
-  id: string;
-  firstName: string;
-}
+import { UserService, UserProfile } from '@/services/UserService';
+import { HealthService, ActivityData, HeartRateData, SleepData, QuickStatsData, InsightData } from '@/services/HealthService';
+import { useFocusEffect } from 'expo-router';
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = Colors[colorScheme ?? 'light'];
 
-  const [user, setUser] = useState<User | null>({ id: '123', firstName: 'Nabil' });
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [activity, setActivity] = useState<ActivityData | null>(null);
+  const [heartRate, setHeartRate] = useState<HeartRateData | null>(null);
+  const [sleep, setSleep] = useState<SleepData | null>(null);
+  const [quickStats, setQuickStats] = useState<QuickStatsData | null>(null);
+  const [insights, setInsights] = useState<InsightData[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    // loadUser();
-  }, []);
+  const loadData = async () => {
+    try {
+      const [userData, activityData, heartRateData, sleepData, quickStatsData, insightsData] = await Promise.all([
+        UserService.getProfile(),
+        HealthService.getActivity().catch(e => null),
+        HealthService.getHeartRate().catch(e => null),
+        HealthService.getSleep().catch(e => null),
+        HealthService.getQuickStats().catch(e => null),
+        HealthService.getInsights().catch(e => [])
+      ]);
 
-  const onRefresh = React.useCallback(() => {
+      setUser(userData);
+      if (activityData) setActivity(activityData);
+      if (heartRateData) setHeartRate(heartRateData);
+      if (sleepData) setSleep(sleepData);
+      if (quickStatsData) setQuickStats(quickStatsData);
+      if (insightsData) setInsights(insightsData);
+
+    } catch (error) {
+      console.log('Failed to load data', error);
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadData();
+    }, [])
+  );
+
+  const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 2000);
+    await loadData();
+    setRefreshing(false);
   }, []);
 
   return (
@@ -59,18 +87,8 @@ export default function HomeScreen() {
 
         <View style={styles.metricsGrid}>
           <HealthMetricCard
-            title="Calories"
-            value="2,456"
-            unit="kcal"
-            icon="flame"
-            accentColor={colors.tint}
-            trend="up"
-            trendValue="12%"
-            onPress={() => router.push('/metrics/calories')}
-          />
-          <HealthMetricCard
             title="Steps"
-            value="8,547"
+            value={activity?.summary.dailyAvg ? activity.summary.dailyAvg.toLocaleString() : "8,547"}
             unit="steps"
             icon="footsteps"
             accentColor={colors.tint}
@@ -79,8 +97,18 @@ export default function HomeScreen() {
             onPress={() => router.push('/metrics/steps')}
           />
           <HealthMetricCard
+            title="Calories"
+            value={activity?.summary.dailyAvg ? Math.round(activity.summary.dailyAvg * 0.04).toLocaleString() : "2,456"}
+            unit="kcal"
+            icon="flame"
+            accentColor={colors.tint}
+            trend="up"
+            trendValue="12%"
+            onPress={() => router.push('/metrics/calories')}
+          />
+          <HealthMetricCard
             title="Heart Rate"
-            value="72"
+            value={heartRate?.stats.avg ? String(heartRate.stats.avg) : "72"}
             unit="bpm"
             icon="heart"
             accentColor={colors.tint}
@@ -100,12 +128,12 @@ export default function HomeScreen() {
           />
           <HealthMetricCard
             title="Sleep"
-            value="7h 30m"
+            value={sleep?.lastNight.duration || "7h 30m"}
             unit="hours"
             icon="moon"
             accentColor={colors.secondary} // Purple/Indigo
             trend="up"
-            trendValue="Good"
+            trendValue={sleep?.lastNight.quality || "Good"}
             onPress={() => router.push('/metrics/sleep')}
           />
         </View>
@@ -117,12 +145,12 @@ export default function HomeScreen() {
           <Text style={[styles.cardTitle, { color: colors.text }]}>Quick Stats</Text>
 
           <View style={styles.moreMetricsRow}>
-            <MetricBox label="Distance" value="6.8 km" icon="map-outline" color={colors.primary} isDark={isDark} />
-            <MetricBox label="Floors" value="12" icon="layers-outline" color={colors.secondary} isDark={isDark} />
+            <MetricBox label="Distance" value={quickStats?.distance || "0 km"} icon="map-outline" color={colors.primary} isDark={isDark} />
+            <MetricBox label="Floors" value={quickStats?.floors || "0"} icon="layers-outline" color={colors.secondary} isDark={isDark} />
           </View>
           <View style={styles.moreMetricsRow}>
-            <MetricBox label="Stress" value="Low" icon="pulse-outline" color={colors.success} isDark={isDark} />
-            <MetricBox label="Recovery" value="78%" icon="battery-charging-outline" color={colors.tint} isDark={isDark} />
+            <MetricBox label="Stress" value={quickStats?.stress || "-"} icon="pulse-outline" color={colors.success} isDark={isDark} />
+            <MetricBox label="Recovery" value={quickStats?.recovery || "-"} icon="battery-charging-outline" color={colors.tint} isDark={isDark} />
           </View>
         </View>
 
@@ -133,15 +161,19 @@ export default function HomeScreen() {
             <Text style={[styles.insightsTitle, { color: isDark ? '#e0e7ff' : '#312e81' }]}>Today's Insights</Text>
           </View>
 
-          <View style={[styles.insightItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'white' }]}>
-            <Text style={[styles.insightLabel, { color: isDark ? '#c7d2fe' : '#4338ca' }]}>Trending Up</Text>
-            <Text style={[styles.insightText, { color: isDark ? '#e0e7ff' : '#3730a3' }]}>You're 15% more active than last Monday. Great momentum!</Text>
-          </View>
-
-          <View style={[styles.insightItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'white' }]}>
-            <Text style={[styles.insightLabel, { color: isDark ? '#c7d2fe' : '#4338ca' }]}>Goal Check</Text>
-            <Text style={[styles.insightText, { color: isDark ? '#e0e7ff' : '#3730a3' }]}>You need 1,453 more steps to hit your daily target.</Text>
-          </View>
+          {insights.length > 0 ? (
+            insights.map((insight, index) => (
+              <View key={index} style={[styles.insightItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'white' }]}>
+                <Text style={[styles.insightLabel, { color: isDark ? '#c7d2fe' : '#4338ca' }]}>{insight.label}</Text>
+                <Text style={[styles.insightText, { color: isDark ? '#e0e7ff' : '#3730a3' }]}>{insight.text}</Text>
+              </View>
+            ))
+          ) : (
+            <View style={[styles.insightItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'white' }]}>
+              <Text style={[styles.insightLabel, { color: isDark ? '#c7d2fe' : '#4338ca' }]}>No Insights</Text>
+              <Text style={[styles.insightText, { color: isDark ? '#e0e7ff' : '#3730a3' }]}>Check back later for health insights.</Text>
+            </View>
+          )}
         </View>
 
       </ScrollView>

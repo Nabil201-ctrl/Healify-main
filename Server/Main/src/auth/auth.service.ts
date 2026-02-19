@@ -16,7 +16,7 @@ export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
-  ) {}
+  ) { }
 
   async signUp(createUserDto: CreateUserDto) {
     try {
@@ -128,7 +128,7 @@ export class AuthService {
       ),
       this.jwtService.signAsync(
         { sub: userId, email },
-        { secret: process.env.JWT_REFRESH_SECRET, expiresIn: '7d' },
+        { secret: process.env.JWT_REFRESH_SECRET, expiresIn: '30d' },
       ),
     ]);
     return { accessToken, refreshToken };

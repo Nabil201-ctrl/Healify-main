@@ -7,19 +7,8 @@ import { AuthService } from '@/services/auth.service';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 
-interface UserProfile {
-    firstName: string;
-    lastName: string;
-    email: string;
-    location?: string;
-    age: number;
-    bodyType: string;
-    height: number;
-    weight: number;
-    activityLevel: string;
-    jobType: string;
-    averageSteps: number;
-}
+import { UserService, UserProfile } from '@/services/UserService';
+import { useFocusEffect } from 'expo-router';
 
 export default function ProfileScreen() {
     const router = useRouter();
@@ -27,22 +16,32 @@ export default function ProfileScreen() {
     const isDark = colorScheme === 'dark';
     const colors = Colors[colorScheme ?? 'light'];
 
-    const [user, setUser] = useState<UserProfile>({
-        firstName: 'Nabil',
-        lastName: 'Abubakar',
-        email: 'nabil@example.com',
-        location: 'Lagos, Nigeria',
-        age: 25,
-        bodyType: 'Athletic',
-        height: 180,
-        weight: 75,
-        activityLevel: 'Active',
-        jobType: 'Software Engineer',
-        averageSteps: 10000,
-    });
+    const [user, setUser] = useState<UserProfile | null>(null);
+
+    const loadUser = async () => {
+        try {
+            const userData = await UserService.getProfile();
+            // Ensure numeric fields are numbers
+            if (userData.age) userData.age = Number(userData.age);
+            if (userData.height) userData.height = Number(userData.height);
+            if (userData.weight) userData.weight = Number(userData.weight);
+            if (userData.averageSteps) userData.averageSteps = Number(userData.averageSteps);
+            setUser(userData);
+            setEditedUser(userData);
+        } catch (error) {
+            console.log('Failed to load user profile', error);
+            Alert.alert("Error", "Failed to load profile");
+        }
+    };
+
+    useFocusEffect(
+        React.useCallback(() => {
+            loadUser();
+        }, [])
+    );
 
     const [isEditing, setIsEditing] = useState(false);
-    const [editedUser, setEditedUser] = useState<UserProfile>(user);
+    const [editedUser, setEditedUser] = useState<UserProfile | null>(null);
 
     // UI State
     const [notifications, setNotifications] = useState(true);
@@ -62,12 +61,20 @@ export default function ProfileScreen() {
         }
     };
 
-    const toggleEdit = () => {
+    const toggleEdit = async () => {
         if (isEditing) {
             // Save changes
-            setUser(editedUser);
-            setIsEditing(false);
-            Alert.alert("Success", "Profile updated successfully!");
+            try {
+                if (!editedUser) return;
+                const updatedUser = await UserService.updateProfile(editedUser);
+                setUser(updatedUser);
+                setEditedUser(updatedUser);
+                setIsEditing(false);
+                Alert.alert("Success", "Profile updated successfully!");
+            } catch (error) {
+                console.error("Failed to update profile", error);
+                Alert.alert("Error", "Failed to update profile");
+            }
         } else {
             setEditedUser(user);
             setIsEditing(true);
@@ -97,8 +104,8 @@ export default function ProfileScreen() {
             {isEditing ? (
                 <TextInput
                     style={[styles.input, { color: colors.text, borderColor: isDark ? '#4b5563' : '#d1d5db' }]}
-                    value={String(editedUser[field] || '')}
-                    onChangeText={(text) => setEditedUser({ ...editedUser, [field]: keyboardType === 'numeric' ? Number(text) : text })}
+                    value={String(editedUser?.[field] || '')}
+                    onChangeText={(text) => setEditedUser(prev => prev ? { ...prev, [field]: keyboardType === 'numeric' ? Number(text) : text } : null)}
                     keyboardType={keyboardType}
                 />
             ) : (
@@ -138,14 +145,14 @@ export default function ProfileScreen() {
                             <View style={styles.nameInputContainer}>
                                 <TextInput
                                     style={[styles.input, styles.nameInput, { color: colors.text, borderColor: isDark ? '#4b5563' : '#d1d5db', marginRight: 8 }]}
-                                    value={editedUser.firstName}
-                                    onChangeText={(text) => setEditedUser({ ...editedUser, firstName: text })}
+                                    value={editedUser?.firstName}
+                                    onChangeText={(text) => setEditedUser(prev => prev ? { ...prev, firstName: text } : null)}
                                     placeholder="First Name"
                                 />
                                 <TextInput
                                     style={[styles.input, styles.nameInput, { color: colors.text, borderColor: isDark ? '#4b5563' : '#d1d5db' }]}
-                                    value={editedUser.lastName}
-                                    onChangeText={(text) => setEditedUser({ ...editedUser, lastName: text })}
+                                    value={editedUser?.lastName}
+                                    onChangeText={(text) => setEditedUser(prev => prev ? { ...prev, lastName: text } : null)}
                                     placeholder="Last Name"
                                 />
                             </View>
@@ -164,12 +171,12 @@ export default function ProfileScreen() {
                             {isEditing ? (
                                 <TextInput
                                     style={[styles.input, { color: colors.text, borderColor: isDark ? '#4b5563' : '#d1d5db', marginLeft: 8, minWidth: 150 }]}
-                                    value={editedUser.location}
-                                    onChangeText={(text) => setEditedUser({ ...editedUser, location: text })}
+                                    value={editedUser?.location}
+                                    onChangeText={(text) => setEditedUser(prev => prev ? { ...prev, location: text } : null)}
                                     placeholder="Location"
                                 />
                             ) : (
-                                <Text style={[styles.locationText, { color: isDark ? '#9ca3af' : '#6b7280' }]}>{user.location}</Text>
+                                <Text style={[styles.locationText, { color: isDark ? '#9ca3af' : '#6b7280' }]}>{user?.location || 'No location set'}</Text>
                             )}
                         </View>
                     </View>
@@ -224,8 +231,8 @@ export default function ProfileScreen() {
                                 {isEditing ? (
                                     <TextInput
                                         style={[styles.input, { color: colors.text, borderColor: isDark ? '#4b5563' : '#d1d5db', marginTop: 4 }]}
-                                        value={editedUser.activityLevel}
-                                        onChangeText={(text) => setEditedUser({ ...editedUser, activityLevel: text })}
+                                        value={editedUser?.activityLevel}
+                                        onChangeText={(text) => setEditedUser(prev => prev ? { ...prev, activityLevel: text } : null)}
                                     />
                                 ) : (
                                     <Text style={[styles.rowValue, { color: colors.text }]}>{user?.activityLevel}</Text>
@@ -242,8 +249,8 @@ export default function ProfileScreen() {
                                 {isEditing ? (
                                     <TextInput
                                         style={[styles.input, { color: colors.text, borderColor: isDark ? '#4b5563' : '#d1d5db', marginTop: 4 }]}
-                                        value={editedUser.jobType}
-                                        onChangeText={(text) => setEditedUser({ ...editedUser, jobType: text })}
+                                        value={editedUser?.jobType}
+                                        onChangeText={(text) => setEditedUser(prev => prev ? { ...prev, jobType: text } : null)}
                                     />
                                 ) : (
                                     <Text style={[styles.rowValue, { color: colors.text }]}>{user?.jobType}</Text>
@@ -260,8 +267,8 @@ export default function ProfileScreen() {
                                 {isEditing ? (
                                     <TextInput
                                         style={[styles.input, { color: colors.text, borderColor: isDark ? '#4b5563' : '#d1d5db', marginTop: 4 }]}
-                                        value={String(editedUser.averageSteps)}
-                                        onChangeText={(text) => setEditedUser({ ...editedUser, averageSteps: Number(text) })}
+                                        value={String(editedUser?.averageSteps || '')}
+                                        onChangeText={(text) => setEditedUser(prev => prev ? { ...prev, averageSteps: Number(text) } : null)}
                                         keyboardType="numeric"
                                     />
                                 ) : (
