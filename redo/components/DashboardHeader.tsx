@@ -7,9 +7,10 @@ import { useColorScheme } from '@/components/useColorScheme';
 interface DashboardHeaderProps {
     userName: string;
     lastSyncTime: string;
+    onNotificationPress?: () => void;
 }
 
-export function DashboardHeader({ userName, lastSyncTime }: DashboardHeaderProps) {
+export function DashboardHeader({ userName, lastSyncTime, onNotificationPress }: DashboardHeaderProps) {
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
     const colors = Colors[colorScheme ?? 'light'];
@@ -47,6 +48,7 @@ export function DashboardHeader({ userName, lastSyncTime }: DashboardHeaderProps
                 <TouchableOpacity
                     style={styles.notificationButton}
                     activeOpacity={0.7}
+                    onPress={onNotificationPress}
                 >
                     <Text style={styles.notificationIcon}>🔔</Text>
                     <View style={styles.notificationBadge} />

@@ -9,6 +9,8 @@ import { SleepChart } from '@/components/SleepChart';
 import ActivityChart from '@/components/ActivityChart';
 import { Ionicons } from '@expo/vector-icons';
 
+import { router } from 'expo-router';
+
 interface User {
   id: string;
   firstName: string;
@@ -43,6 +45,7 @@ export default function HomeScreen() {
         <DashboardHeader
           userName={user?.firstName || 'User'}
           lastSyncTime="Just now"
+          onNotificationPress={() => router.push('/notifications')}
         />
 
         <View style={styles.sectionHeader}>
@@ -63,6 +66,7 @@ export default function HomeScreen() {
             accentColor={colors.tint}
             trend="up"
             trendValue="12%"
+            onPress={() => router.push('/metrics/calories')}
           />
           <HealthMetricCard
             title="Steps"
@@ -72,6 +76,7 @@ export default function HomeScreen() {
             accentColor={colors.tint}
             trend="down"
             trendValue="5%"
+            onPress={() => router.push('/metrics/steps')}
           />
           <HealthMetricCard
             title="Heart Rate"
@@ -81,6 +86,7 @@ export default function HomeScreen() {
             accentColor={colors.tint}
             trend="stable"
             trendValue="0%"
+            onPress={() => router.push('/metrics/heart-rate')}
           />
           <HealthMetricCard
             title="Active Time"
@@ -90,12 +96,21 @@ export default function HomeScreen() {
             accentColor={colors.tint}
             trend="up"
             trendValue="18%"
+            onPress={() => router.push('/metrics/active-time')}
+          />
+          <HealthMetricCard
+            title="Sleep"
+            value="7h 30m"
+            unit="hours"
+            icon="moon"
+            accentColor={colors.secondary} // Purple/Indigo
+            trend="up"
+            trendValue="Good"
+            onPress={() => router.push('/metrics/sleep')}
           />
         </View>
 
-        <HeartRateChart />
-        <ActivityChart />
-        <SleepChart />
+        {/* Graphs moved to detailed pages */}
 
         {/* More Metrics Section - Cleaned up */}
         <View style={[styles.moreMetricsContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>

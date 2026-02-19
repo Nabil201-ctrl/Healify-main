@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -12,6 +12,7 @@ interface HealthMetricCardProps {
     accentColor: string; // Color for icon/trend, not background
     trend: 'up' | 'down' | 'stable';
     trendValue: string;
+    onPress?: () => void;
 }
 
 export default function HealthMetricCard({
@@ -21,7 +22,8 @@ export default function HealthMetricCard({
     icon,
     accentColor,
     trend,
-    trendValue
+    trendValue,
+    onPress
 }: HealthMetricCardProps) {
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
@@ -46,39 +48,51 @@ export default function HealthMetricCard({
         }
     };
 
-    return (
-        <View style={styles.wrapper}>
-            <View style={[
-                styles.container,
-                {
-                    backgroundColor: colors.card,
-                    borderColor: colors.border,
-                }
-            ]}>
-                <View style={styles.header}>
-                    <View style={[styles.iconContainer, { backgroundColor: isDark ? `${accentColor}20` : `${accentColor}10` }]}>
-                        <Ionicons name={icon} size={24} color={accentColor} />
-                    </View>
-                    <View style={[styles.trendBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
-                        <Ionicons name={getTrendIcon()} size={14} color={getTrendColor()} style={{ marginRight: 4 }} />
-                        <Text style={[styles.trendValue, { color: getTrendColor() }]}>
-                            {trendValue}
-                        </Text>
-                    </View>
+    const cardContent = (
+        <View style={[
+            styles.container,
+            {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+            }
+        ]}>
+            <View style={styles.header}>
+                <View style={[styles.iconContainer, { backgroundColor: isDark ? `${accentColor}20` : `${accentColor}10` }]}>
+                    <Ionicons name={icon} size={24} color={accentColor} />
                 </View>
-
-                <View style={styles.content}>
-                    <Text style={[styles.title, { color: colors.textSecondary }]}>
-                        {title}
-                    </Text>
-                    <Text style={[styles.value, { color: colors.text }]}>
-                        {value}
-                    </Text>
-                    <Text style={[styles.unit, { color: colors.textSecondary }]}>
-                        {unit}
+                <View style={[styles.trendBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
+                    <Ionicons name={getTrendIcon()} size={14} color={getTrendColor()} style={{ marginRight: 4 }} />
+                    <Text style={[styles.trendValue, { color: getTrendColor() }]}>
+                        {trendValue}
                     </Text>
                 </View>
             </View>
+
+            <View style={styles.content}>
+                <Text style={[styles.title, { color: colors.textSecondary }]}>
+                    {title}
+                </Text>
+                <Text style={[styles.value, { color: colors.text }]}>
+                    {value}
+                </Text>
+                <Text style={[styles.unit, { color: colors.textSecondary }]}>
+                    {unit}
+                </Text>
+            </View>
+        </View>
+    );
+
+    if (onPress) {
+        return (
+            <TouchableOpacity style={styles.wrapper} onPress={onPress} activeOpacity={0.7}>
+                {cardContent}
+            </TouchableOpacity>
+        );
+    }
+
+    return (
+        <View style={styles.wrapper}>
+            {cardContent}
         </View>
     );
 }

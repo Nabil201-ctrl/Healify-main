@@ -3,6 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { EstablishConnection, getChannel, NOTIFICATION_QUEUE } from "./config/Mq.js";
 import { formatNotification } from "./services/notification-formatter.js";
+import swaggerUi from 'swagger-ui-express';
+import { specs } from './config/swagger.js';
 
 dotenv.config();
 
@@ -10,9 +12,37 @@ const app = express();
 const PORT = process.env.PORT || 3003;
 
 app.use(cors());
+app.use(cors());
 app.use(express.json());
 
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+
 // Health check endpoint
+// Health check endpoint
+/**
+ * @swagger
+ * /:
+ *   get:
+ *     summary: Health check endpoint
+ *     tags: [Notification]
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 service:
+ *                   type: string
+ *                 timestamp:
+ *                   type: string
+ *                 note:
+ *                   type: string
+ */
 app.get("/", (req, res) => {
     res.json({
         status: "healthy",

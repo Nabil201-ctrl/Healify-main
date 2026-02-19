@@ -1,6 +1,8 @@
 import express from "express";
 import { EstablishConnection, getChannel, publishResponse, CHAT_QUEUE, AI_CONTEXT_QUEUE, AI_CONTEXT_REQUEST_QUEUE, HISTORY_REQUEST_QUEUE, SESSION_LIST_REQUEST_QUEUE, SESSION_MESSAGES_REQUEST_QUEUE } from "./config/Mq.js";
 import { createRedisConnection, cacheResponse, getCachedResponse } from "./config/Redis.js";
+import swaggerUi from 'swagger-ui-express';
+import { specs } from './config/swagger.js';
 
 
 // Initialize connections
@@ -406,7 +408,36 @@ async function consumeChatRequests() {
 const app = express();
 app.use(express.json());
 
-// Bookmark endpoints
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+
+/**
+ * @swagger
+ * /bookmark/{sessionId}:
+ *   post:
+ *     summary: Bookmark or unbookmark a chat session
+ *     tags: [Chat]
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               isBookmarked:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Bookmark status updated successfully
+ *       404:
+ *         description: Session not found
+ */
 app.post("/bookmark/:sessionId", async (req, res) => {
     try {
         const { sessionId } = req.params;
@@ -447,6 +478,33 @@ app.post("/bookmark/:sessionId", async (req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /bookmarks/{userId}:
+ *   get:
+ *     summary: Get all bookmarked sessions for a user
+ *     tags: [Chat]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of bookmarked sessions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 bookmarks:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ */
 app.get("/bookmarks/:userId", async (req, res) => {
     try {
         const { userId } = req.params;
@@ -533,6 +591,29 @@ async function authenticateDoctor(req, res, next) {
 }
 
 // Doctor Login
+/**
+ * @swagger
+ * /doctor/login:
+ *   post:
+ *     summary: Doctor login
+ *     tags: [Doctor]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *       401:
+ *         description: Invalid credentials
+ */
 app.post("/doctor/login", async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -583,6 +664,27 @@ app.post("/doctor/login", async (req, res) => {
 });
 
 // Register Push Token
+/**
+ * @swagger
+ * /doctor/push-token:
+ *   post:
+ *     summary: Register push token for doctor
+ *     tags: [Doctor]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               token:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Token registered
+ */
 app.post('/doctor/push-token', authenticateDoctor, async (req, res) => {
     try {
         const { token } = req.body;
@@ -606,6 +708,35 @@ app.post('/doctor/push-token', authenticateDoctor, async (req, res) => {
 });
 
 // Doctor Registration (for initial setup)
+/**
+ * @swagger
+ * /doctor/register:
+ *   post:
+ *     summary: Register specific doctor
+ *     tags: [Doctor]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               specialization:
+ *                 type: string
+ *               licenseNumber:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Registration successful
+ */
 app.post("/doctor/register", async (req, res) => {
     try {
         const { email, password, firstName, lastName, specialization, licenseNumber } = req.body;
@@ -644,6 +775,18 @@ app.post("/doctor/register", async (req, res) => {
 });
 
 // Get review queue (ANONYMIZED)
+/**
+ * @swagger
+ * /doctor/review-queue:
+ *   get:
+ *     summary: Get anonymized review queue
+ *     tags: [Doctor]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of sessions needing review
+ */
 app.get("/doctor/review-queue", authenticateDoctor, async (req, res) => {
     try {
         const sessions = await ChatSession.find({
@@ -684,6 +827,24 @@ app.get("/doctor/review-queue", authenticateDoctor, async (req, res) => {
 });
 
 // Assign session to doctor
+/**
+ * @swagger
+ * /doctor/assign/{sessionId}:
+ *   post:
+ *     summary: Assign a session to the authenticated doctor
+ *     tags: [Doctor]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Session assigned
+ */
 app.post("/doctor/assign/:sessionId", authenticateDoctor, async (req, res) => {
     try {
         const { sessionId } = req.params;
@@ -711,6 +872,33 @@ app.post("/doctor/assign/:sessionId", authenticateDoctor, async (req, res) => {
 });
 
 // Doctor sends message to patient
+/**
+ * @swagger
+ * /doctor/message/{sessionId}:
+ *   post:
+ *     summary: Send a message as a doctor
+ *     tags: [Doctor]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               text:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Message sent
+ */
 app.post("/doctor/message/:sessionId", authenticateDoctor, async (req, res) => {
     try {
         const { sessionId } = req.params;
@@ -752,6 +940,33 @@ app.post("/doctor/message/:sessionId", authenticateDoctor, async (req, res) => {
 });
 
 // Mark session as reviewed
+/**
+ * @swagger
+ * /doctor/complete-review/{sessionId}:
+ *   post:
+ *     summary: Complete a review for a session
+ *     tags: [Doctor]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               notes:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Review completed
+ */
 app.post("/doctor/complete-review/:sessionId", authenticateDoctor, async (req, res) => {
     try {
         const { sessionId } = req.params;
@@ -780,6 +995,24 @@ app.post("/doctor/complete-review/:sessionId", authenticateDoctor, async (req, r
 });
 
 // Get session messages (ANONYMIZED)
+/**
+ * @swagger
+ * /doctor/session-messages/{sessionId}:
+ *   get:
+ *     summary: Get anonymized messages for a session
+ *     tags: [Doctor]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of messages
+ */
 app.get("/doctor/session-messages/:sessionId", authenticateDoctor, async (req, res) => {
     try {
         const { sessionId } = req.params;
