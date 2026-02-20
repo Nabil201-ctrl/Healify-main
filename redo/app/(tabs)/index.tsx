@@ -110,6 +110,9 @@ export default function HomeScreen() {
         <DashboardHeader
           userName={user?.firstName || 'User'}
           lastSyncTime="Just now"
+          streak={user?.isProfileComplete ? 3 : 1}
+          goal={activity?.summary.goal ? Math.min(Math.round((activity.summary.dailyAvg / activity.summary.goal) * 100), 100) : 0}
+          sleepScore={sleep?.lastNight.quality ? (sleep.lastNight.quality === 'Good' ? 85 : sleep.lastNight.quality === 'Fair' ? 65 : 45) : '--'}
           onNotificationPress={() => router.push('/notifications')}
         />
 

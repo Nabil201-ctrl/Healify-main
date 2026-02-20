@@ -98,7 +98,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(correlationId);
         reject(new Error('Health service request timed out'));
-      }, 5000) as any as NodeJS.Timeout; // 5 second timeout
+      }, 15000) as any as NodeJS.Timeout; // 15 second timeout
 
       this.pendingRequests.set(correlationId, { resolve, reject, timeout });
 

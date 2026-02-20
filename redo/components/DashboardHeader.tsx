@@ -7,10 +7,13 @@ import { useColorScheme } from '@/components/useColorScheme';
 interface DashboardHeaderProps {
     userName: string;
     lastSyncTime: string;
+    streak?: number;
+    goal?: number;
+    sleepScore?: number | string;
     onNotificationPress?: () => void;
 }
 
-export function DashboardHeader({ userName, lastSyncTime, onNotificationPress }: DashboardHeaderProps) {
+export function DashboardHeader({ userName, lastSyncTime, streak = 0, goal = 0, sleepScore = '--', onNotificationPress }: DashboardHeaderProps) {
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
     const colors = Colors[colorScheme ?? 'light'];
@@ -58,19 +61,20 @@ export function DashboardHeader({ userName, lastSyncTime, onNotificationPress }:
             <View style={styles.statsRow}>
                 <View style={styles.statItem}>
                     <Text style={styles.statLabel}>Streak</Text>
-                    <Text style={styles.statValue}>12 <Text style={styles.statUnit}>days</Text></Text>
+                    <Text style={styles.statValue}>{streak} <Text style={styles.statUnit}>days</Text></Text>
                 </View>
                 <View style={styles.divider} />
                 <View style={styles.statItem}>
                     <Text style={styles.statLabel}>Goal</Text>
-                    <Text style={styles.statValue}>85<Text style={styles.statUnit}>%</Text></Text>
+                    <Text style={styles.statValue}>{goal}<Text style={styles.statUnit}>%</Text></Text>
                 </View>
                 <View style={styles.divider} />
                 <View style={styles.statItem}>
                     <Text style={styles.statLabel}>Sleep</Text>
-                    <Text style={styles.statValue}>87</Text>
+                    <Text style={styles.statValue}>{sleepScore}</Text>
                 </View>
             </View>
+
         </LinearGradient>
     );
 }

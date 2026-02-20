@@ -1,3 +1,4 @@
+import { Alert } from 'react-native';
 import api from './api';
 
 export interface Medication {
@@ -68,10 +69,42 @@ export const UserService = {
      */
     updateProfile: async (data: Partial<UserProfile>): Promise<UserProfile> => {
         try {
-            const response = await api.patch('/users/me', data);
+            // Strictly whitelist properties to avoid backend forbidNonWhitelisted validation errors
+            const allowedKeys = [
+                'firstName', 'lastName', 'age', 'height', 'weight', 'sleepHours',
+                'bodyType', 'gender', 'bloodType', 'healthIssues', 'chronicConditions',
+                'allergies', 'medications', 'averageSteps', 'activityLevel', 'jobType',
+                'daysLessActive', 'smokingStatus', 'alcoholUse', 'maritalStatus',
+                'hasChildren', 'numberOfChildren', 'emergencyContactName',
+                'emergencyContactPhone', 'location'
+            ];
+
+            const patchData: any = {};
+            for (const key of allowedKeys) {
+                if (key in data && data[key as keyof UserProfile] !== undefined) {
+                    let val = (data as any)[key];
+                    if (key === 'medications' && Array.isArray(val)) {
+                        // strip internal IDs from medications to prevent ValidationPipe errors
+                        val = val.map((med: any) => {
+                            const { _id, id, __v, createdAt, updatedAt, ...cleanMed } = med;
+                            return cleanMed;
+                        });
+                    }
+                    if (typeof val === 'number' && Number.isNaN(val)) {
+                        continue;
+                    }
+                    if (val === '') {
+                        continue; // Skip empty strings to prevent enum validation errors on backend
+                    }
+                    patchData[key] = val;
+                }
+            }
+
+            // Send the patch payload
+            const response = await api.patch('/users/me', patchData);
             return response.data;
-        } catch (error) {
-            console.error('Error updating user profile:', error);
+        } catch (error: any) {
+            console.error('Error updating user profile:', error?.response?.data || error.message); Alert.alert('Detailed Error', JSON.stringify(error?.response?.data || error.message));
             throw error;
         }
     },

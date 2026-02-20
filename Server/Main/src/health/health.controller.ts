@@ -191,4 +191,37 @@ export class HealthController {
       timestamp: new Date().toISOString(),
     };
   }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Post('google-fit/sync')
+  @ApiOperation({ summary: 'Trigger a server-side sync with Google Fit using an OAuth access token' })
+  @ApiResponse({ status: 200, description: 'Google Fit sync initiated' })
+  async syncGoogleFit(@Request() req, @Body() data: { accessToken: string }) {
+    if (!data.accessToken) {
+      throw new HttpException('accessToken is required', HttpStatus.BAD_REQUEST);
+    }
+    const userId = req.user.userId;
+    console.log(`[Health] Initiating Google Fit sync for user: ${userId}`);
+
+    try {
+      await this.rabbitMQService.sendHealthSync({
+        type: 'GOOGLE_FIT_SYNC',
+        userId,
+        accessToken: data.accessToken
+      });
+
+      // Optionally invalidate cache so next fetch gets fresh data
+      await this.cacheService.invalidateHealthCache(userId);
+
+      return {
+        success: true,
+        message: 'Google Fit data sync initiated',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('[Health] Failed to initiate Google Fit sync:', error);
+      throw new HttpException('Failed to initiate Google Fit sync', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
 }

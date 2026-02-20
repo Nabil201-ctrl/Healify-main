@@ -122,5 +122,18 @@ export const HealthService = {
             console.error('Error syncing health data:', error);
             throw error;
         }
+    },
+
+    /**
+     * Force sync Google Fit data directly on the backend via OAuth access token
+     */
+    syncGoogleFit: async (accessToken: string) => {
+        try {
+            const response = await api.post('/health/google-fit/sync', { accessToken });
+            return response.data;
+        } catch (error) {
+            console.error('Error syncing Google Fit data:', error);
+            throw error;
+        }
     }
 };
