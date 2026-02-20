@@ -2,7 +2,7 @@
     "name": "notification-microservice",
     "version": "1.0.0",
     "type": "module",
-    "description": "Microservice for sending notifications",
+    "description": "In-app notification microservice — persists to MongoDB via the Main server",
     "main": "server.js",
     "scripts": {
         "start": "node server.js",
@@ -10,9 +10,9 @@
     },
     "dependencies": {
         "amqplib": "^0.10.3",
+        "axios": "^1.13.5",
         "cors": "^2.8.5",
         "dotenv": "^16.3.1",
-        "expo-server-sdk": "^4.0.0",
         "express": "^4.18.2",
         "swagger-jsdoc": "^6.2.8",
         "swagger-ui-express": "^5.0.1"

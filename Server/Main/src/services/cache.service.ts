@@ -147,11 +147,10 @@ export class CacheService {
     };
   }
 
-  // Invalidate all health cache for a user
+  // Invalidate all health cache for a user (all 5 data types)
   async invalidateHealthCache(userId: string): Promise<void> {
-    const dataTypes = ['activity', 'heart-rate', 'sleep'];
-    for (const type of dataTypes) {
-      await this.delete(`health:${userId}:${type}`);
-    }
+    const dataTypes = ['activity', 'heart-rate', 'sleep', 'quick-stats', 'insights'];
+    await Promise.all(dataTypes.map(type => this.delete(`health:${userId}:${type}`)));
+    console.log(`[Cache] Invalidated all health cache for userId: ${userId}`);
   }
 }

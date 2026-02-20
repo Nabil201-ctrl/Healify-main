@@ -13,17 +13,13 @@ import { useAuthContext } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import tw from 'twrnc';
 import { Ionicons } from '@expo/vector-icons';
-import { ProgressChart, BarChart } from 'react-native-chart-kit';
+import { ProgressChart } from 'react-native-chart-kit';
 import { useRouter } from 'expo-router';
 import { HealthService } from '../../services/HealthService';
 
 const { width } = Dimensions.get('window');
 
-// Mock Data for bar chart
-const barChartData = {
-    labels: [],
-    datasets: [{ data: [20, 45, 28, 80, 99, 43, 80, 50, 60, 70, 85, 90] }]
-};
+
 
 export default function Home() {
     const { user } = useAuthContext();
@@ -126,7 +122,7 @@ export default function Home() {
                         <ProgressChart
                             data={{
                                 labels: ["Move"],
-                                data: [183 / 300]
+                                data: [Math.min(stats.calories / 300, 1)]
                             }}
                             width={width - 40}
                             height={200}
@@ -135,7 +131,7 @@ export default function Home() {
                             chartConfig={{
                                 backgroundGradientFrom: colors.card,
                                 backgroundGradientTo: colors.card,
-                                color: (opacity = 1) => `rgba(250, 17, 79, ${opacity})`, // Keep accent color consistent
+                                color: (opacity = 1) => `rgba(250, 17, 79, ${opacity})`,
                                 labelColor: () => `rgba(0,0,0,0)`,
                             }}
                             hideLegend={true}
@@ -161,26 +157,9 @@ export default function Home() {
                                 </View>
                                 <Ionicons name="chevron-forward-circle" size={20} color={colors.textSecondary} />
                             </View>
-
-                            <BarChart
-                                data={barChartData}
-                                width={width / 2 - 40}
-                                height={80}
-                                yAxisLabel=""
-                                yAxisSuffix=""
-                                chartConfig={{
-                                    ...getChartConfig(colors.steps), // Use helper to get theme-aware config
-                                    barRadius: 2,
-                                }}
-                                withHorizontalLabels={false}
-                                withVerticalLabels={false}
-                                withInnerLines={false}
-                                fromZero
-                                style={tw`-ml-4`}
-                            />
-                            <View style={tw`flex-row justify-between px-1 pb-2`}>
-                                <Text style={[tw`text-[10px]`, { color: colors.textSecondary }]}>12 AM</Text>
-                                <Text style={[tw`text-[10px]`, { color: colors.textSecondary }]}>6 PM</Text>
+                            <View style={tw`flex-row justify-between px-1 pb-4 mt-auto`}>
+                                <Text style={[tw`text-[10px]`, { color: colors.textSecondary }]}>Today</Text>
+                                <Text style={[tw`text-[10px] font-semibold`, { color: colors.steps }]}>{stats.steps > 0 ? `${stats.steps.toLocaleString()} steps` : 'No data'}</Text>
                             </View>
                         </CustomCard>
                     </TouchableOpacity>
@@ -192,30 +171,13 @@ export default function Home() {
                                 <View>
                                     <Text style={[tw`font-semibold text-base`, { color: colors.text }]}>Step Distance</Text>
                                     <Text style={[tw`text-xs mt-1`, { color: colors.textSecondary }]}>Today</Text>
-                                    <Text style={[tw`text-3xl font-bold mt-1`, { color: colors.distance }]}>{stats.distance}KM</Text>
+                                    <Text style={[tw`text-3xl font-bold mt-1`, { color: colors.distance }]}>{stats.distance > 0 ? `${stats.distance}KM` : '--'}</Text>
                                 </View>
                                 <Ionicons name="chevron-forward-circle" size={20} color={colors.textSecondary} />
                             </View>
-
-                            <BarChart
-                                data={barChartData}
-                                width={width / 2 - 40}
-                                height={80}
-                                yAxisLabel=""
-                                yAxisSuffix=""
-                                chartConfig={{
-                                    ...getChartConfig(colors.distance),
-                                    barRadius: 2,
-                                }}
-                                withHorizontalLabels={false}
-                                withVerticalLabels={false}
-                                withInnerLines={false}
-                                fromZero
-                                style={tw`-ml-4`}
-                            />
-                            <View style={tw`flex-row justify-between px-1 pb-2`}>
-                                <Text style={[tw`text-[10px]`, { color: colors.textSecondary }]}>12 AM</Text>
-                                <Text style={[tw`text-[10px]`, { color: colors.textSecondary }]}>6 PM</Text>
+                            <View style={tw`flex-row justify-between px-1 pb-4 mt-auto`}>
+                                <Text style={[tw`text-[10px]`, { color: colors.textSecondary }]}>Today</Text>
+                                <Text style={[tw`text-[10px] font-semibold`, { color: colors.distance }]}>{stats.distance > 0 ? `${stats.distance} km` : 'No data'}</Text>
                             </View>
                         </CustomCard>
                     </TouchableOpacity>
@@ -227,15 +189,10 @@ export default function Home() {
                     <CustomCard style={tw`flex-1 mr-2 h-40`}>
                         <View style={tw`flex-row justify-between items-start mb-2`}>
                             <Text style={[tw`font-semibold text-base`, { color: colors.text }]}>Sessions</Text>
-                            <Ionicons name="chevron-forward-circle" size={20} color={colors.textSecondary} />
                         </View>
-                        <View style={tw`mt-2`}>
-                            <View style={tw`w-8 h-8 rounded-full bg-[#a8db10] items-center justify-center mb-2`}>
-                                <Ionicons name="walk" size={16} color="black" />
-                            </View>
-                            <Text style={[tw`font-semibold`, { color: colors.text }]}>Outdoor Walk</Text>
-                            <Text style={tw`text-[#a8db10] text-xl font-bold`}>0.07KM</Text>
-                            <Text style={[tw`text-xs mt-2`, { color: colors.textSecondary }]}>29/11/25</Text>
+                        <View style={tw`flex-1 items-center justify-center opacity-50`}>
+                            <Ionicons name="walk-outline" size={32} color={colors.textSecondary} />
+                            <Text style={[tw`text-xs text-center mt-2`, { color: colors.textSecondary }]}>Sessions coming soon</Text>
                         </View>
                     </CustomCard>
 
@@ -243,14 +200,13 @@ export default function Home() {
                     <CustomCard style={tw`flex-1 ml-2 h-40`}>
                         <View style={tw`flex-row justify-between items-start mb-2`}>
                             <Text style={[tw`font-semibold text-base`, { color: colors.text }]}>Awards</Text>
-                            <Ionicons name="chevron-forward-circle" size={20} color={colors.textSecondary} />
                         </View>
                         <View style={tw`flex-1 items-center justify-center`}>
                             <View style={[tw`w-16 h-16 rounded-full border-2 items-center justify-center`, { borderColor: colors.border, backgroundColor: colors.background }]}>
                                 <Ionicons name="ribbon" size={32} color={colors.textSecondary} />
                             </View>
                         </View>
-                        <Text style={[tw`text-xs text-center font-medium`, { color: colors.text }]}>Restoring your awards</Text>
+                        <Text style={[tw`text-xs text-center font-medium`, { color: colors.text }]}>Keep moving to earn awards</Text>
                     </CustomCard>
                 </View>
 

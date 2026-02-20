@@ -1,24 +1,23 @@
-// backend/src/users/users.service.ts
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User, UserDocument } from './entities/user.entity';
+import { Notification, NotificationDocument } from './entities/notification.entity';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) { }
+  constructor(
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Notification.name) private notificationModel: Model<NotificationDocument>,
+  ) { }
 
   async create(createUserDto: CreateUserDto) {
     const newUser = new this.userModel(createUserDto);
     const savedUser = await newUser.save();
-    // Convert to plain object and exclude password, add id field
     const userObj = (savedUser.toObject && savedUser.toObject()) || savedUser;
     const { password, _id, __v, ...userWithoutPassword } = userObj as any;
-    return {
-      ...userWithoutPassword,
-      id: _id.toString(),
-    };
+    return { ...userWithoutPassword, id: _id.toString() };
   }
 
   async findOneByEmail(email: string): Promise<UserDocument | null> {
@@ -30,11 +29,7 @@ export class UsersService {
   }
 
   async updateRefreshToken(userId: string, refreshToken: string | null) {
-    await this.userModel.findByIdAndUpdate(
-      userId,
-      { refreshToken },
-      { new: true },
-    );
+    await this.userModel.findByIdAndUpdate(userId, { refreshToken }, { new: true });
   }
 
   async update(userId: string, updateUserDto: any): Promise<UserDocument | null> {
@@ -57,5 +52,58 @@ export class UsersService {
       { new: true, upsert: false },
     ).exec();
     return this.findOneById(userId);
+  }
+
+  // ── In-App Notifications ──────────────────────────────────────────────────
+
+  /**
+   * Persist a new in-app notification for a user.
+   * Called by the NotificationMicroservice via RabbitMQ consumer on the Main server.
+   */
+  async createNotification(
+    userId: string,
+    type: string,
+    title: string,
+    message: string,
+  ): Promise<NotificationDocument> {
+    const n = new this.notificationModel({
+      userId,
+      type,
+      title,
+      message,
+      timestamp: new Date(),
+    });
+    return n.save();
+  }
+
+  /**
+   * Fetch the most recent 50 notifications for a user, newest first.
+   */
+  async getNotifications(userId: string): Promise<NotificationDocument[]> {
+    return this.notificationModel
+      .find({ userId })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .exec();
+  }
+
+  /**
+   * Mark a single notification as read.
+   */
+  async markNotificationRead(notificationId: string, userId: string): Promise<NotificationDocument | null> {
+    return this.notificationModel
+      .findOneAndUpdate(
+        { _id: notificationId, userId },
+        { read: true },
+        { new: true },
+      )
+      .exec();
+  }
+
+  /**
+   * Mark all notifications as read for a user.
+   */
+  async markAllNotificationsRead(userId: string): Promise<void> {
+    await this.notificationModel.updateMany({ userId, read: false }, { read: true });
   }
 }

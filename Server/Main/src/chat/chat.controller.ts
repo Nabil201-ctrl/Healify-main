@@ -90,20 +90,14 @@ export class ChatController {
     const { message, sessionId } = sendMessageDto;
 
     try {
-      // Send request to chat microservice via RabbitMQ
       const newSessionId = await this.rabbitMQService.sendChatRequest(
         userId,
         message,
         sessionId,
       );
 
-      // Store session info in cache
-      await this.cacheService.storeChatSession(newSessionId, {
-        userId,
-        message,
-        status: 'processing',
-        createdAt: new Date().toISOString(),
-      });
+      // NOTE: Session state is stored in MongoDB by the ChatMicroservice.
+      // No Redis cache write needed here.
 
       return {
         success: true,
@@ -163,7 +157,8 @@ export class ChatController {
   })
   async getSessionStatus(@Param('sessionId') sessionId: string) {
     try {
-      const session = await this.cacheService.getChatSession(sessionId);
+      // Read directly from ChatMicroservice MongoDB via RPC — no Redis
+      const session = await this.rabbitMQService.requestSessionStatus(sessionId);
 
       if (!session) {
         return {
@@ -174,7 +169,12 @@ export class ChatController {
 
       return {
         success: true,
-        session,
+        session: {
+          status: session.status,
+          response: session.aiResponse ?? null,
+          metadata: session.aiMetadata ?? null,
+          completedAt: session.completedAt ?? null,
+        },
       };
     } catch (error) {
       console.error('Failed to get session status:', error);

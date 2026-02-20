@@ -3,9 +3,15 @@ import { HydratedDocument } from 'mongoose';
 
 export type UserDocument = HydratedDocument<User>;
 
-@Schema({
-  timestamps: true,
-})
+// Nested medication schema
+const MedicationSchema = {
+  name: { type: String, required: true },
+  reason: { type: String },
+  dosage: { type: String },
+  endDate: { type: String },
+};
+
+@Schema({ timestamps: true })
 export class User {
   @Prop({ required: true, unique: true })
   email: string;
@@ -22,7 +28,7 @@ export class User {
   @Prop()
   refreshToken?: string;
 
-  // Health Profile Fields
+  // ── Physical ──────────────────────────────────────────────────────────────
   @Prop()
   age?: number;
 
@@ -32,45 +38,87 @@ export class User {
   @Prop()
   weight?: number; // kg
 
-  @Prop({ type: String, enum: ['Slim', 'Lean', 'Fat', 'Average'] })
+  @Prop()
+  sleepHours?: number; // avg hrs/night
+
+  @Prop({ type: String, enum: ['Slim', 'Lean', 'Average', 'Athletic', 'Overweight'] })
   bodyType?: string;
 
-  @Prop({ type: [String], default: [] })
-  healthIssues?: string[];
+  @Prop({ type: String, enum: ['Male', 'Female', 'Non-binary', 'Prefer not to say'] })
+  gender?: string;
 
-  @Prop({ type: [String], default: [] })
-  allergies?: string[];
+  @Prop({ type: String, enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'] })
+  bloodType?: string;
 
-  @Prop({ type: [String], default: [] })
-  medications?: string[];
-
-  @Prop()
-  averageSteps?: number;
-
+  // ── Lifestyle ─────────────────────────────────────────────────────────────
   @Prop({ type: String, enum: ['Sedentary', 'Lightly Active', 'Moderately Active', 'Very Active'] })
   activityLevel?: string;
 
   @Prop({ type: String, enum: ['Active', 'Office', 'Mixed'] })
   jobType?: string;
 
+  @Prop()
+  averageSteps?: number;
+
   @Prop({ type: [String], default: [] })
   daysLessActive?: string[];
 
+  @Prop({ type: String, enum: ['Never', 'Former', 'Current'] })
+  smokingStatus?: string;
+
+  @Prop({ type: String, enum: ['None', 'Occasional', 'Moderate', 'Heavy'] })
+  alcoholUse?: string;
+
+  // ── Personal ──────────────────────────────────────────────────────────────
+  @Prop({ type: String, enum: ['Single', 'Married', 'Divorced', 'Widowed', 'Prefer not to say'] })
+  maritalStatus?: string;
+
+  @Prop()
+  hasChildren?: boolean;
+
+  @Prop()
+  numberOfChildren?: number;
+
+  @Prop()
+  emergencyContactName?: string;
+
+  @Prop()
+  emergencyContactPhone?: string;
+
+  @Prop()
+  location?: string;
+
+  // ── Medical ───────────────────────────────────────────────────────────────
+  @Prop({ type: [String], default: [] })
+  healthIssues?: string[];
+
+  @Prop({ type: [String], default: [] })
+  chronicConditions?: string[];
+
+  @Prop({ type: [String], default: [] })
+  allergies?: string[];
+
+  @Prop({ type: [MedicationSchema], default: [] })
+  medications?: {
+    name: string;
+    reason?: string;
+    dosage?: string;
+    endDate?: string;
+  }[];
+
+  // ── Meta ──────────────────────────────────────────────────────────────────
   @Prop({ default: false })
   isProfileComplete: boolean;
 
   @Prop({
     type: String,
     enum: ['PENDING', 'PROFILE_SETUP', 'COMPLETED'],
-    default: 'PENDING'
+    default: 'PENDING',
   })
   onboardingStatus: string;
 
   @Prop({ type: [String], default: [] })
   pushTokens?: string[];
-
-  @Prop()
-  location?: string; // User's location (city, state, country)
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

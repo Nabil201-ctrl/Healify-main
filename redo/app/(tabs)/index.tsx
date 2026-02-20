@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { StyleSheet, View, ScrollView, RefreshControl, Text, TouchableOpacity } from 'react-native';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -14,6 +14,7 @@ import { router } from 'expo-router';
 import { UserService, UserProfile } from '@/services/UserService';
 import { HealthService, ActivityData, HeartRateData, SleepData, QuickStatsData, InsightData } from '@/services/HealthService';
 import { useFocusEffect } from 'expo-router';
+import { DashboardSkeleton } from '@/components/Skeletons';
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -28,7 +29,17 @@ export default function HomeScreen() {
   const [insights, setInsights] = useState<InsightData[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadData = async () => {
+  // Global cache tracker outside React state to persist across unmounts/remounts within the same session
+  // Could also use a React ref or separate context, but module-level variable is simplest for preventing rapid tab-switch requests.
+  const loadData = async (forceRefresh = false) => {
+    // Cache for 5 minutes (300,000 ms)
+    const CACHE_TTL = 300000;
+
+    // Check if we can use existing data (must have user data, and fetch is recent)
+    if (!forceRefresh && user && window.lastDashboardFetch && Date.now() - window.lastDashboardFetch < CACHE_TTL) {
+      return;
+    }
+
     try {
       const [userData, activityData, heartRateData, sleepData, quickStatsData, insightsData] = await Promise.all([
         UserService.getProfile(),
@@ -46,6 +57,7 @@ export default function HomeScreen() {
       if (quickStatsData) setQuickStats(quickStatsData);
       if (insightsData) setInsights(insightsData);
 
+      window.lastDashboardFetch = Date.now();
     } catch (error) {
       console.log('Failed to load data', error);
     }
@@ -59,9 +71,13 @@ export default function HomeScreen() {
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    await loadData();
+    await loadData(true);
     setRefreshing(false);
   }, []);
+
+  if (!user && !refreshing) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -88,52 +104,52 @@ export default function HomeScreen() {
         <View style={styles.metricsGrid}>
           <HealthMetricCard
             title="Steps"
-            value={activity?.summary.dailyAvg ? activity.summary.dailyAvg.toLocaleString() : "8,547"}
+            value={activity?.summary.dailyAvg ? activity.summary.dailyAvg.toLocaleString() : '--'}
             unit="steps"
             icon="footsteps"
             accentColor={colors.tint}
-            trend="down"
-            trendValue="5%"
+            trend="stable"
+            trendValue=""
             onPress={() => router.push('/metrics/steps')}
           />
           <HealthMetricCard
             title="Calories"
-            value={activity?.summary.dailyAvg ? Math.round(activity.summary.dailyAvg * 0.04).toLocaleString() : "2,456"}
+            value={activity?.summary.dailyAvg ? Math.round(activity.summary.dailyAvg * 0.04).toLocaleString() : '--'}
             unit="kcal"
             icon="flame"
             accentColor={colors.tint}
-            trend="up"
-            trendValue="12%"
+            trend="stable"
+            trendValue=""
             onPress={() => router.push('/metrics/calories')}
           />
           <HealthMetricCard
             title="Heart Rate"
-            value={heartRate?.stats.avg ? String(heartRate.stats.avg) : "72"}
+            value={heartRate?.stats.avg ? String(heartRate.stats.avg) : '--'}
             unit="bpm"
             icon="heart"
             accentColor={colors.tint}
             trend="stable"
-            trendValue="0%"
+            trendValue=""
             onPress={() => router.push('/metrics/heart-rate')}
           />
           <HealthMetricCard
             title="Active Time"
-            value="2.5"
-            unit="hrs"
+            value={quickStats?.distance ? quickStats.distance : '--'}
+            unit="today"
             icon="flash"
             accentColor={colors.tint}
-            trend="up"
-            trendValue="18%"
+            trend="stable"
+            trendValue=""
             onPress={() => router.push('/metrics/active-time')}
           />
           <HealthMetricCard
             title="Sleep"
-            value={sleep?.lastNight.duration || "7h 30m"}
-            unit="hours"
+            value={sleep?.lastNight.duration || '--'}
+            unit="last night"
             icon="moon"
-            accentColor={colors.secondary} // Purple/Indigo
-            trend="up"
-            trendValue={sleep?.lastNight.quality || "Good"}
+            accentColor={colors.secondary}
+            trend="stable"
+            trendValue={sleep?.lastNight.quality || ''}
             onPress={() => router.push('/metrics/sleep')}
           />
         </View>
@@ -145,12 +161,12 @@ export default function HomeScreen() {
           <Text style={[styles.cardTitle, { color: colors.text }]}>Quick Stats</Text>
 
           <View style={styles.moreMetricsRow}>
-            <MetricBox label="Distance" value={quickStats?.distance || "0 km"} icon="map-outline" color={colors.primary} isDark={isDark} />
-            <MetricBox label="Floors" value={quickStats?.floors || "0"} icon="layers-outline" color={colors.secondary} isDark={isDark} />
+            <MetricBox label="Distance" value={quickStats?.distance || '--'} icon="map-outline" color={colors.primary} isDark={isDark} />
+            <MetricBox label="Floors" value={quickStats?.floors || '--'} icon="layers-outline" color={colors.secondary} isDark={isDark} />
           </View>
           <View style={styles.moreMetricsRow}>
-            <MetricBox label="Stress" value={quickStats?.stress || "-"} icon="pulse-outline" color={colors.success} isDark={isDark} />
-            <MetricBox label="Recovery" value={quickStats?.recovery || "-"} icon="battery-charging-outline" color={colors.tint} isDark={isDark} />
+            <MetricBox label="Stress" value={quickStats?.stress || '--'} icon="pulse-outline" color={colors.success} isDark={isDark} />
+            <MetricBox label="Recovery" value={quickStats?.recovery || '--'} icon="battery-charging-outline" color={colors.tint} isDark={isDark} />
           </View>
         </View>
 

@@ -10,6 +10,7 @@ const AI_CONTEXT_REQUEST_QUEUE = "ai_context_request";
 const HISTORY_REQUEST_QUEUE = "chat_history_request";
 const SESSION_LIST_REQUEST_QUEUE = "chat_session_list_request";
 const SESSION_MESSAGES_REQUEST_QUEUE = "chat_session_messages_request";
+const SESSION_STATUS_REQUEST_QUEUE = "chat_session_status_request"; // replaces Redis polling
 
 let connection = null;
 let channel = null;
@@ -19,19 +20,19 @@ async function EstablishConnection() {
         connection = await amqlib.connect(RABBITMQ_URL);
         channel = await connection.createChannel();
 
-        // Assert both queues
         await channel.assertQueue(CHAT_QUEUE, { durable: true });
         await channel.assertQueue(RESPONSE_QUEUE, { durable: true });
         await channel.assertQueue(AI_CONTEXT_QUEUE, { durable: true });
         await channel.assertQueue(AI_CONTEXT_REQUEST_QUEUE, { durable: true });
         await channel.assertQueue(HISTORY_REQUEST_QUEUE, { durable: true });
-        await channel.assertQueue('chat_session_list_request', { durable: true });
-        await channel.assertQueue('chat_session_messages_request', { durable: true });
+        await channel.assertQueue(SESSION_LIST_REQUEST_QUEUE, { durable: true });
+        await channel.assertQueue(SESSION_MESSAGES_REQUEST_QUEUE, { durable: true });
+        await channel.assertQueue(SESSION_STATUS_REQUEST_QUEUE, { durable: true });
 
-        console.log("Connected to RabbitMQ and queues asserted");
+        console.log("[Chat/MQ] Connected to RabbitMQ and all queues asserted");
         return channel;
     } catch (error) {
-        console.error("Error connecting to RabbitMQ:", error);
+        console.error("[Chat/MQ] Error connecting to RabbitMQ:", error);
         throw error;
     }
 }
@@ -51,11 +52,18 @@ async function publishResponse(response) {
             Buffer.from(JSON.stringify(response)),
             { persistent: true }
         );
-        console.log("Response published to queue:", response.sessionId);
+        console.log("[Chat/MQ] Response published for session:", response.sessionId);
     } catch (error) {
-        console.error("Failed to publish response:", error);
+        console.error("[Chat/MQ] Failed to publish response:", error);
         throw error;
     }
 }
 
-export { EstablishConnection, getChannel, publishResponse, CHAT_QUEUE, RESPONSE_QUEUE, AI_CONTEXT_QUEUE, AI_CONTEXT_REQUEST_QUEUE, HISTORY_REQUEST_QUEUE, SESSION_LIST_REQUEST_QUEUE, SESSION_MESSAGES_REQUEST_QUEUE };
+export {
+    EstablishConnection, getChannel, publishResponse,
+    CHAT_QUEUE, RESPONSE_QUEUE,
+    AI_CONTEXT_QUEUE, AI_CONTEXT_REQUEST_QUEUE,
+    HISTORY_REQUEST_QUEUE,
+    SESSION_LIST_REQUEST_QUEUE, SESSION_MESSAGES_REQUEST_QUEUE,
+    SESSION_STATUS_REQUEST_QUEUE,
+};

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { AuthService } from '@/services/auth.service';
+import { useAuth } from '@/context/AuthContext';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 
@@ -12,6 +13,7 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
+    const { onAuthSuccess } = useAuth();
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
 
@@ -24,7 +26,7 @@ export default function LoginScreen() {
         setIsLoading(true);
         try {
             await AuthService.login(email, password);
-            router.replace('/(tabs)');
+            onAuthSuccess(); // triggers AuthGate to redirect to /(tabs)
         } catch (error: any) {
             Alert.alert('Error', error.response?.data?.message || 'Login failed');
         } finally {

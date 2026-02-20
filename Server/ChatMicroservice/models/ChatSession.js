@@ -25,6 +25,11 @@ const ChatSessionSchema = new mongoose.Schema({
         dataPoints: { type: Number }
     },
 
+    // AI Response (stored here for polling — replaces Redis)
+    aiResponse: { type: String },          // the completed AI reply text
+    aiMetadata: { type: mongoose.Schema.Types.Mixed }, // confidence, provider, etc.
+    completedAt: { type: Date },           // when the AI finished
+
     // Doctor Review Fields
     assignedDoctorId: { type: String, index: true },
     reviewedAt: { type: Date },

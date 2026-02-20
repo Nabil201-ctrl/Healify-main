@@ -15,6 +15,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
   private readonly HEALTH_RESPONSE_QUEUE = 'health_responses';
   private readonly HEALTH_SYNC_QUEUE = 'health_sync';
   private readonly NOTIFICATION_QUEUE = 'notification_queue';
+  private readonly SESSION_STATUS_REQUEST_QUEUE = 'chat_session_status_request';
 
   private pendingRequests = new Map<string, { resolve: (value: any) => void; reject: (reason?: any) => void; timeout: NodeJS.Timeout }>();
 
@@ -41,6 +42,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
       await this.channel.assertQueue(this.HEALTH_RESPONSE_QUEUE, { durable: true });
       await this.channel.assertQueue(this.HEALTH_SYNC_QUEUE, { durable: true });
       await this.channel.assertQueue(this.NOTIFICATION_QUEUE, { durable: true });
+      await this.channel.assertQueue(this.SESSION_STATUS_REQUEST_QUEUE, { durable: true });
 
       console.log('RabbitMQ connected and queues asserted');
 
@@ -75,11 +77,12 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async fetchHealthData(dataType: string): Promise<any> {
+  async fetchHealthData(dataType: string, userId?: string): Promise<any> {
     const correlationId = randomUUID();
     const payload = {
       type: dataType,
       correlationId,
+      userId: userId || undefined,
       timestamp: new Date().toISOString(),
     };
 
@@ -97,7 +100,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
           Buffer.from(JSON.stringify(payload)),
           { persistent: true },
         );
-        console.log(`Health request sent: ${dataType}, correlationId: ${correlationId}`);
+        console.log(`Health request sent: ${dataType}, userId: ${userId}, correlationId: ${correlationId}`);
       } catch (error) {
         clearTimeout(timeout);
         this.pendingRequests.delete(correlationId);
@@ -187,6 +190,36 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
       );
 
       setTimeout(() => resolve([]), 5000);
+    });
+  }
+
+  /**
+   * RPC: Ask ChatMicroservice for the status + aiResponse of a session.
+   * Reads from MongoDB — no Redis involved.
+   */
+  async requestSessionStatus(sessionId: string): Promise<any | null> {
+    if (!this.channel) throw new Error('RabbitMQ channel not initialized');
+
+    const correlationId = randomUUID();
+    const replyTo = await this.channel.assertQueue('', { exclusive: true });
+
+    return new Promise((resolve) => {
+      this.channel.consume(replyTo.queue, (msg) => {
+        if (msg && msg.properties.correlationId === correlationId) {
+          const content = JSON.parse(msg.content.toString());
+          resolve(content.session ?? null);
+          this.channel.deleteQueue(replyTo.queue);
+        }
+      }, { noAck: true });
+
+      this.channel.sendToQueue(
+        this.SESSION_STATUS_REQUEST_QUEUE,
+        Buffer.from(JSON.stringify({ sessionId })),
+        { correlationId, replyTo: replyTo.queue },
+      );
+
+      // Timeout — return null so the app keeps polling
+      setTimeout(() => resolve(null), 4000);
     });
   }
 

@@ -1,20 +1,15 @@
 import express from "express";
-import { EstablishConnection, getChannel, publishResponse, CHAT_QUEUE, AI_CONTEXT_QUEUE, AI_CONTEXT_REQUEST_QUEUE, HISTORY_REQUEST_QUEUE, SESSION_LIST_REQUEST_QUEUE, SESSION_MESSAGES_REQUEST_QUEUE } from "./config/Mq.js";
-import { createRedisConnection, cacheResponse, getCachedResponse } from "./config/Redis.js";
+import { EstablishConnection, getChannel, publishResponse, CHAT_QUEUE, AI_CONTEXT_QUEUE, AI_CONTEXT_REQUEST_QUEUE, HISTORY_REQUEST_QUEUE, SESSION_LIST_REQUEST_QUEUE, SESSION_MESSAGES_REQUEST_QUEUE, SESSION_STATUS_REQUEST_QUEUE } from "./config/Mq.js";
 import swaggerUi from 'swagger-ui-express';
 import { specs } from './config/swagger.js';
+// Redis removed — session results stored in MongoDB, health context fetched via RPC
 
 
 // Initialize connections
 async function initializeServices() {
     try {
-        // Connect to RabbitMQ
         await EstablishConnection();
-        console.log("RabbitMQ channel established");
-
-        // Connect to Redis
-        await createRedisConnection();
-        console.log("Redis connection established");
+        console.log("[Chat] RabbitMQ channel established");
 
         // Start consuming messages
         consumeChatRequests();
@@ -22,28 +17,22 @@ async function initializeServices() {
         consumeHistoryRequests();
         consumeSessionRequests();
         consumeSessionMessagesRequests();
+        consumeSessionStatusRequests(); // NEW: replaces Redis session polling
     } catch (error) {
-        console.error("Failed to initialize services:", error);
+        console.error("[Chat] Failed to initialize services:", error);
         process.exit(1);
     }
 }
 
 // Consume AI context updates
+// NOTE: Context is no longer cached in Redis; it is fetched fresh via RPC in processAIRequest.
+// This queue consumer still acks messages so the queue stays drained.
 async function consumeAIContextUpdates() {
     const channel = getChannel();
     channel.consume(AI_CONTEXT_QUEUE, async (msg) => {
         if (msg) {
             const content = JSON.parse(msg.content.toString());
-            console.log("Received AI context update:", content);
-
-            // Store context in Redis (key: user_context:{userId})
-            if (content.userId) {
-                const redisKey = `user_context:${content.userId}`;
-                // Cache for 24 hours
-                await cacheResponse(redisKey, content);
-                console.log("Updated AI context for user:", content.userId);
-            }
-
+            console.log("[Chat] AI context update received (acknowledged, not cached):", content?.userId);
             channel.ack(msg);
         }
     });
@@ -184,6 +173,35 @@ async function consumeSessionMessagesRequests() {
 
 
 
+// RPC Provider: Serve Session Status (replaces Redis-based polling)
+async function consumeSessionStatusRequests() {
+    const channel = getChannel();
+    channel.consume(SESSION_STATUS_REQUEST_QUEUE, async (msg) => {
+        if (msg) {
+            try {
+                const { sessionId } = JSON.parse(msg.content.toString());
+                const session = await ChatSession.findOne({ sessionId })
+                    .select('sessionId status aiResponse aiMetadata completedAt')
+                    .lean();
+
+                channel.sendToQueue(
+                    msg.properties.replyTo,
+                    Buffer.from(JSON.stringify({ session: session ?? null })),
+                    { correlationId: msg.properties.correlationId }
+                );
+            } catch (err) {
+                channel.sendToQueue(
+                    msg.properties.replyTo,
+                    Buffer.from(JSON.stringify({ session: null, error: err.message })),
+                    { correlationId: msg.properties.correlationId }
+                );
+            }
+            channel.ack(msg);
+        }
+    });
+    console.log('[Chat] Listening for session status requests on:', SESSION_STATUS_REQUEST_QUEUE);
+}
+
 import {
     analyzeQueryClarity,
     generateClarificationRequest,
@@ -192,19 +210,17 @@ import {
 } from './services/ai-safety.service.js';
 import { generateMedicalResponse } from './services/ai-provider.service.js';
 
+
 // AI Processing function
 async function processAIRequest(message, userId, sessionId) {
-    console.log(`Processing AI request for user ${userId}: ${message}`);
+    console.log(`[Chat] Processing AI request for user ${userId}`);
 
-    // 1. Try to get context from Cache first (fastest)
-    const redisKey = `user_context:${userId}`;
-    let userContext = await getCachedResponse(redisKey);
-
-    // 2. If not in cache, or to ensure freshness, request from System AI (RPC)
+    // 1. Fetch health context via RPC from the HealthMicroservice
+    //    (Redis removed — context always fetched fresh to avoid stale data)
+    let userContext = null;
     const systemContext = await requestHealthContext(userId);
-
     if (systemContext) {
-        userContext = { data: systemContext }; // Normalize structure
+        userContext = { data: systemContext };
     }
 
     // ==========================================
@@ -380,12 +396,17 @@ async function consumeChatRequests() {
                         console.log(`Session ${sessionId} flagged for review. Notification logic would go here.`);
                     }
 
-                    // 4. Cache the response in Redis for Main Server polling
-                    await cacheResponse(sessionId, {
-                        status: 'completed',
-                        response: aiResponse.text,
-                        metadata: aiResponse.metadata
-                    });
+                    // 4. Persist response to MongoDB so the Main server can poll it
+                    //    (Redis removed — ChatSession.aiResponse is the source of truth)
+                    await ChatSession.findOneAndUpdate(
+                        { sessionId },
+                        {
+                            status: 'completed',
+                            aiResponse: aiResponse.text,
+                            aiMetadata: aiResponse.metadata,
+                            completedAt: new Date(),
+                        }
+                    );
 
                     // Acknowledge message
                     channel.ack(msg);
@@ -1055,10 +1076,8 @@ app.get("/doctor/patient-health/:sessionId", authenticateDoctor, async (req, res
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        // Get Health Context (from Redis or RPC)
-        const redisKey = `user_context:${session.userId}`;
-        const userContext = await getCachedResponse(redisKey);
-        const healthData = userContext?.data || {};
+        // Health context: available via RPC in real AI flow; in this summary endpoint use empty object
+        const healthData = {};
 
         // Anonymize Data
         const anonymizedData = anonymizePatientData(user, healthData);

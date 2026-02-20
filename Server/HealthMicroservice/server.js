@@ -14,81 +14,11 @@ if (PORT == 3001) {
 }
 
 app.use(cors());
-app.use(cors());
 app.use(express.json());
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
-// Mock Data
-const activityData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    datasets: [
-        {
-            data: [65, 78, 82, 75, 90, 45, 60],
-        },
-    ],
-    summary: {
-        dailyAvg: 71,
-        weeklyTotal: 495,
-        goal: 60
-    }
-};
-
-const heartRateData = {
-    labels: ['6AM', '9AM', '12PM', '3PM', '6PM', '9PM'],
-    datasets: [
-        {
-            data: [68, 72, 75, 78, 72, 68],
-        },
-    ],
-    stats: {
-        min: 68,
-        avg: 105,
-        max: 120,
-        resting: 65
-    }
-};
-
-const sleepData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    data: [
-        [6, 1.5, 0.5], // Deep, Light, REM
-        [5.5, 2, 0.5],
-        [7, 1, 0.5],
-        [6.5, 1.5, 0.5],
-        [5, 2.5, 0.5],
-        [8, 1, 1],
-        [7.5, 1, 0.5],
-    ],
-    lastNight: {
-        duration: '7h 30m',
-        quality: '85%',
-        bedtime: '10:45 PM'
-    }
-};
-
-const quickStatsData = {
-    distance: "6.8 km",
-    floors: "12",
-    stress: "Low",
-    recovery: "78%"
-};
-
-const insightsData = [
-    {
-        label: "Trending Up",
-        text: "You're 15% more active than last Monday. Great momentum!",
-        type: "positive"
-    },
-    {
-        label: "Goal Check",
-        text: "You need 1,453 more steps to hit your daily target.",
-        type: "warning"
-    }
-];
-
-// RabbitMQ Consumer
 // MongoDB & Models
 import mongoose from 'mongoose';
 import { HealthLog } from './models/HealthLog.js';
@@ -100,10 +30,151 @@ mongoose.connect(MONGODB_URI)
     .then(() => console.log("Connected to MongoDB"))
     .catch(err => console.error("MongoDB connection error:", err));
 
+// ─────────────────────────────────────────────
+// Data builders: read from MongoDB, not memory
+// ─────────────────────────────────────────────
+
+/**
+ * Build activity data (steps) from the last 7 HealthLog records for a user.
+ * Returns a chart-friendly structure matching the frontend's HealthService interfaces.
+ */
+async function buildActivityData(userId) {
+    const logs = await HealthLog.find({ userId }).sort({ date: -1 }).limit(7).lean();
+    const ordered = logs.reverse(); // oldest → newest
+
+    const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const labels = ordered.length
+        ? ordered.map(l => {
+            const d = new Date(l.date);
+            return DAY_LABELS[d.getDay()] || l.date;
+        })
+        : DAY_LABELS;
+
+    const stepValues = ordered.map(l => l.steps || 0);
+    const dailyAvg = stepValues.length
+        ? Math.round(stepValues.reduce((a, b) => a + b, 0) / stepValues.length)
+        : 0;
+    const weeklyTotal = stepValues.reduce((a, b) => a + b, 0);
+
+    return {
+        labels: labels.length === 7 ? labels : DAY_LABELS,
+        datasets: [{ data: stepValues.length === 7 ? stepValues : new Array(7).fill(0) }],
+        summary: {
+            dailyAvg,
+            weeklyTotal,
+            goal: 10000,
+        },
+    };
+}
+
+/**
+ * Build heart rate data from the last 7 HealthLog records.
+ */
+async function buildHeartRateData(userId) {
+    const logs = await HealthLog.find({ userId }).sort({ date: -1 }).limit(7).lean();
+    const ordered = logs.reverse();
+
+    const TIME_LABELS = ['6AM', '9AM', '12PM', '3PM', '6PM', '9PM'];
+    const hrValues = ordered.map(l => l.heartRate || 0).filter(v => v > 0);
+
+    const avg = hrValues.length
+        ? Math.round(hrValues.reduce((a, b) => a + b, 0) / hrValues.length)
+        : 0;
+    const min = hrValues.length ? Math.min(...hrValues) : 0;
+    const max = hrValues.length ? Math.max(...hrValues) : 0;
+
+    // Use actual values for time-of-day chart if we have enough, else spread avg across labels
+    const chartData = hrValues.length >= 6
+        ? hrValues.slice(0, 6)
+        : new Array(6).fill(avg || 0);
+
+    return {
+        labels: TIME_LABELS,
+        datasets: [{ data: chartData }],
+        stats: {
+            min,
+            avg,
+            max,
+            resting: min || avg,
+        },
+    };
+}
+
+/**
+ * Build sleep data from the last 7 HealthLog records.
+ */
+async function buildSleepData(userId) {
+    const logs = await HealthLog.find({ userId }).sort({ date: -1 }).limit(7).lean();
+    const ordered = logs.reverse();
+
+    const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const labels = ordered.length
+        ? ordered.map(l => { const d = new Date(l.date); return DAY_LABELS[d.getDay()] || l.date; })
+        : DAY_LABELS;
+
+    // Each entry: [Deep, Light, REM] — we store total sleep hours; distribute roughly
+    const data = ordered.map(l => {
+        const total = l.sleep || 0;
+        const deep = parseFloat((total * 0.7).toFixed(1));
+        const light = parseFloat((total * 0.2).toFixed(1));
+        const rem = parseFloat((total * 0.1).toFixed(1));
+        return [deep, light, rem];
+    });
+
+    const lastLog = ordered[ordered.length - 1];
+    const lastSleep = lastLog?.sleep || 0;
+    const hrs = Math.floor(lastSleep);
+    const mins = Math.round((lastSleep - hrs) * 60);
+
+    return {
+        labels: labels.length === 7 ? labels : DAY_LABELS,
+        data: data.length === 7 ? data : new Array(7).fill([0, 0, 0]),
+        lastNight: {
+            duration: lastSleep > 0 ? `${hrs}h ${mins}m` : 'No data',
+            quality: lastSleep >= 7 ? 'Good' : lastSleep >= 5 ? 'Fair' : lastSleep > 0 ? 'Poor' : 'No data',
+            bedtime: 'N/A',
+        },
+    };
+}
+
+/**
+ * Build quick stats from the most recent HealthLog.
+ */
+async function buildQuickStats(userId) {
+    const latest = await HealthLog.findOne({ userId }).sort({ date: -1 }).lean();
+
+    const steps = latest?.steps || 0;
+    const distanceKm = steps > 0 ? parseFloat((steps * 0.0008).toFixed(1)) : 0;
+
+    return {
+        distance: distanceKm > 0 ? `${distanceKm} km` : '0 km',
+        floors: '0', // not tracked in HealthLog yet
+        stress: 'N/A',
+        recovery: 'N/A',
+    };
+}
+
+/**
+ * Build insights from MongoDB Insight documents for the user.
+ */
+async function buildInsights(userId) {
+    const insights = await Insight.find({ userId }).sort({ timestamp: -1 }).limit(5).lean();
+
+    if (!insights.length) return [];
+
+    return insights.map(i => ({
+        label: i.type.replace(/_/g, ' '),
+        text: i.message,
+        type: i.severity === 'WARNING' ? 'warning' : i.severity === 'CRITICAL' ? 'warning' : 'info',
+    }));
+}
+
+// ─────────────────────────────────────────────
 // System AI: Analyze and Store
+// ─────────────────────────────────────────────
 async function analyzeAndStore(data) {
     const today = new Date().toISOString().split('T')[0];
-    const userId = "user_123"; // Mock user ID
+    const userId = data.userId || "default_user";
 
     // 1. Store/Update Health Log
     let log = await HealthLog.findOne({ userId, date: today });
@@ -116,7 +187,7 @@ async function analyzeAndStore(data) {
     await log.save();
 
     // 2. Analyze (Compare with history)
-    const history = await HealthLog.find({ userId }).sort({ date: -1 }).limit(5); // Get last 5 days
+    const history = await HealthLog.find({ userId }).sort({ date: -1 }).limit(5);
     let insights = [];
 
     if (history.length > 1) {
@@ -138,6 +209,10 @@ async function analyzeAndStore(data) {
     return { log, insights };
 }
 
+// ─────────────────────────────────────────────
+// RabbitMQ Consumers
+// ─────────────────────────────────────────────
+
 // RPC Provider: Respond to Chat AI context requests
 async function consumeContextRequests() {
     const channel = getChannel();
@@ -146,10 +221,10 @@ async function consumeContextRequests() {
             const content = JSON.parse(msg.content.toString());
             console.log("Received context request:", content);
 
-            const userId = content.userId || "user_123";
+            const userId = content.userId || "default_user";
             const today = new Date().toISOString().split('T')[0];
 
-            // Fetch latest data
+            // Fetch latest data from MongoDB
             const log = await HealthLog.findOne({ userId, date: today });
             const insights = await Insight.find({ userId }).sort({ timestamp: -1 }).limit(3);
 
@@ -161,7 +236,6 @@ async function consumeContextRequests() {
                 }
             };
 
-            // Send response back to the reply queue
             channel.sendToQueue(
                 msg.properties.replyTo,
                 Buffer.from(JSON.stringify(response)),
@@ -182,19 +256,12 @@ async function consumeHealthSync() {
                 const content = JSON.parse(msg.content.toString());
                 console.log("Received health sync data:", content);
 
-                // Update in-memory data (keep for legacy/fast access if needed)
-                if (content.heartRate) heartRateData.stats.avg = content.heartRate;
-                if (content.steps) {
-                    activityData.summary.dailyAvg = Math.round(content.steps / 20);
-                    activityData.summary.weeklyTotal += Math.round(content.steps / 20);
-                }
-
-                // System AI Analysis
+                // System AI Analysis & persist to MongoDB
                 const { log, insights } = await analyzeAndStore(content);
 
                 // Publish to AI Context (Push update)
                 await publishAIContextUpdate({
-                    userId: "user_123",
+                    userId: content.userId || "default_user",
                     type: "HEALTH_UPDATE",
                     data: {
                         current: { heartRate: log.heartRate, steps: log.steps },
@@ -207,7 +274,7 @@ async function consumeHealthSync() {
                 if (content.heartRate > 100) {
                     console.log("High heart rate detected! Sending notification...");
                     await publishNotification({
-                        userId: "user_123",
+                        userId: content.userId || "default_user",
                         type: "HIGH_HEART_RATE",
                         message: `Warning: Your average heart rate is high (${content.heartRate} bpm). Please rest.`,
                         timestamp: new Date().toISOString()
@@ -233,20 +300,21 @@ async function consumeHealthRequests() {
                     const request = JSON.parse(msg.content.toString());
                     console.log("Received health request:", request);
 
-                    const { type, correlationId } = request;
+                    const { type, correlationId, userId } = request;
+                    const resolvedUserId = userId || "default_user";
                     let data;
 
                     switch (type) {
                         case 'activity':
-                            data = activityData;
+                            data = await buildActivityData(resolvedUserId);
                             break;
                         case 'heart-rate':
-                            data = heartRateData;
+                            data = await buildHeartRateData(resolvedUserId);
                             // Check for abnormal heart rate
                             if (data.stats && data.stats.avg > 100) {
                                 console.log("High heart rate detected! Sending notification...");
                                 await publishNotification({
-                                    userId: "user_123", // Mock user ID
+                                    userId: resolvedUserId,
                                     type: "HIGH_HEART_RATE",
                                     message: `Warning: Your average heart rate is high (${data.stats.avg} bpm). Please rest.`,
                                     timestamp: new Date().toISOString()
@@ -254,13 +322,13 @@ async function consumeHealthRequests() {
                             }
                             break;
                         case 'sleep':
-                            data = sleepData;
+                            data = await buildSleepData(resolvedUserId);
                             break;
                         case 'quick-stats':
-                            data = quickStatsData;
+                            data = await buildQuickStats(resolvedUserId);
                             break;
                         case 'insights':
-                            data = insightsData;
+                            data = await buildInsights(resolvedUserId);
                             break;
                         default:
                             throw new Error(`Unknown health data type: ${type}`);
@@ -277,7 +345,6 @@ async function consumeHealthRequests() {
 
                 } catch (error) {
                     console.error("Error processing health request:", error);
-                    // Send error response if possible, or just nack
                     if (msg.content) {
                         try {
                             const request = JSON.parse(msg.content.toString());
@@ -286,7 +353,7 @@ async function consumeHealthRequests() {
                                 error: error.message,
                                 timestamp: new Date().toISOString()
                             });
-                            channel.ack(msg); // Ack because we handled the error
+                            channel.ack(msg);
                         } catch (e) {
                             channel.nack(msg, false, false);
                         }
@@ -302,8 +369,9 @@ async function consumeHealthRequests() {
     console.log("Health microservice is consuming messages...");
 }
 
+// ─────────────────────────────────────────────
 // Routes
-// Routes
+// ─────────────────────────────────────────────
 /**
  * @swagger
  * /health:
@@ -313,15 +381,6 @@ async function consumeHealthRequests() {
  *     responses:
  *       200:
  *         description: Service is healthy
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                 service:
- *                   type: string
  */
 app.get('/health', (req, res) => {
     res.json({ status: 'healthy', service: 'health-microservice' });

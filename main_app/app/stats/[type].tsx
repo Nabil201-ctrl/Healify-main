@@ -1,42 +1,85 @@
-import React, { useLayoutEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Dimensions, StatusBar } from 'react-native';
+import React, { useLayoutEffect, useEffect, useState, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Dimensions, StatusBar, ActivityIndicator, RefreshControl } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { LineChart } from 'react-native-chart-kit';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../../context/ThemeContext';
 import tw from 'twrnc';
+import api from '../../api/api';
 
 const { width } = Dimensions.get('window');
 
-// Mock Data Generators
-const generateData = (type: string) => {
-    const isSteps = type === 'steps';
-    const isCalories = type === 'calories';
-    const isDistance = type === 'distance';
+type HistoryEntry = {
+    id: string;
+    timestamp: string;
+    value: string | number;
+    unit: string;
+    title: string;
+    icon: string;
+};
 
-    // Labels (Time)
-    const labels = ["6AM", "9AM", "12PM", "3PM", "6PM", "9PM"];
+type StatsData = {
+    labels: string[];
+    data: number[];
+    total: number;
+    average: number;
+    history: HistoryEntry[];
+};
 
-    // Graph Data
-    let data = [0, 0, 0, 0, 0, 0];
-    if (isSteps) data = [500, 1200, 3500, 5000, 7000, 8500];
-    if (isCalories) data = [50, 150, 400, 650, 900, 1100];
-    if (isDistance) data = [0.5, 1.2, 3.5, 4.8, 6.2, 7.5];
+function metaForType(type: string): { title: string; unit: string; icon: string } {
+    switch (type) {
+        case 'steps': return { title: 'Step Count', unit: 'steps', icon: 'footsteps' };
+        case 'calories': return { title: 'Calories Burned', unit: 'kcal', icon: 'flame' };
+        case 'distance': return { title: 'Distance Covered', unit: 'km', icon: 'map' };
+        default: return { title: 'Activity Stats', unit: '', icon: 'pulse' };
+    }
+}
 
-    // List History Data
-    const history = Array.from({ length: 10 }).map((_, i) => ({
-        id: i.toString(),
-        timestamp: `${8 + i}:00 AM`,
-        value: isSteps ? Math.floor(Math.random() * 1000) + 100 :
-            isCalories ? Math.floor(Math.random() * 100) + 50 :
-                (Math.random() * 2).toFixed(2),
-        unit: isSteps ? 'steps' : isCalories ? 'kcal' : 'km',
-        title: isSteps ? 'Morning Walk' : isCalories ? 'Active Burn' : 'Run',
-        icon: isSteps ? 'footsteps' : isCalories ? 'flame' : 'map',
+function colorForType(type: string, colors: any): string {
+    switch (type) {
+        case 'steps': return colors.steps;
+        case 'calories': return colors.activityRing;
+        case 'distance': return colors.distance;
+        default: return colors.primary;
+    }
+}
+
+/**
+ * Map backend /health/activity data into chart-friendly format for this screen.
+ * Falls back gracefully if the endpoint returns unexpected shapes.
+ */
+function mapActivityToStatsData(type: string, backendData: any): StatsData {
+    const datasets = backendData?.datasets?.[0]?.data ?? [];
+    const labels = backendData?.labels ?? datasets.map((_: any, i: number) => `Day ${i + 1}`);
+    const summary = backendData?.summary ?? {};
+
+    let data: number[] = datasets.map(Number);
+    if (data.length === 0) data = [0];
+
+    // Scale dataset values for calories/distance if needed
+    if (type === 'calories') {
+        data = data.map((v: number) => Math.round(v * 0.04));
+    }
+    if (type === 'distance') {
+        data = data.map((v: number) => parseFloat((v * 0.0008).toFixed(2)));
+    }
+
+    const total = data[data.length - 1] ?? 0;
+    const average = data.length ? Math.round(data.reduce((a, b) => a + b, 0) / data.length) : 0;
+
+    // Build history rows from datasets
+    const { unit, icon } = metaForType(type);
+    const history: HistoryEntry[] = labels.map((label: string, i: number) => ({
+        id: String(i),
+        timestamp: label,
+        value: data[i] ?? 0,
+        unit,
+        title: type === 'steps' ? 'Daily Steps' : type === 'calories' ? 'Active Burn' : 'Distance',
+        icon,
     }));
 
-    return { labels, data, history };
-};
+    return { labels, data, total, average, history };
+}
 
 export default function StatsDetailsScreen() {
     const { type } = useLocalSearchParams<{ type: string }>();
@@ -45,37 +88,45 @@ export default function StatsDetailsScreen() {
     const { colors, isDark } = useTheme();
 
     const metricType = type || 'steps';
-    const { labels, data, history } = generateData(metricType);
+    const { title } = metaForType(metricType);
+    const themeColor = colorForType(metricType, colors);
 
-    const getTitle = () => {
-        switch (metricType) {
-            case 'steps': return 'Step Count';
-            case 'calories': return 'Calories Burned';
-            case 'distance': return 'Distance Covered';
-            default: return 'Activity Stats';
+    const [statsData, setStatsData] = useState<StatsData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchData = useCallback(async () => {
+        try {
+            setError(null);
+            // All step/calorie/distance stats come from the activity endpoint
+            const res = await api.get('/health/activity');
+            const mapped = mapActivityToStatsData(metricType, res.data);
+            setStatsData(mapped);
+        } catch (e: any) {
+            console.error('[Stats] Failed to fetch:', e?.message);
+            setError('Could not load data. Pull down to retry.');
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
         }
-    };
+    }, [metricType]);
 
-    const getColor = () => {
-        switch (metricType) {
-            case 'steps': return colors.steps;
-            case 'calories': return colors.activityRing;
-            case 'distance': return colors.distance;
-            default: return colors.primary;
-        }
-    };
+    useEffect(() => { fetchData(); }, [fetchData]);
 
-    const themeColor = getColor();
+    const onRefresh = useCallback(() => { setRefreshing(true); fetchData(); }, [fetchData]);
 
     useLayoutEffect(() => {
         navigation.setOptions({ headerShown: false });
     }, [navigation]);
 
-    const renderItem = ({ item }: { item: any }) => (
+    const { unit, icon } = metaForType(metricType);
+
+    const renderItem = ({ item }: { item: HistoryEntry }) => (
         <View style={[tw`flex-row items-center justify-between p-4 rounded-2xl mb-3`, { backgroundColor: colors.card }]}>
             <View style={tw`flex-row items-center`}>
                 <View style={[tw`w-10 h-10 rounded-full items-center justify-center mr-4`, { backgroundColor: `${themeColor}20` }]}>
-                    <Ionicons name={item.icon} size={20} color={themeColor} />
+                    <Ionicons name={item.icon as any} size={20} color={themeColor} />
                 </View>
                 <View>
                     <Text style={[tw`font-semibold text-base`, { color: colors.text }]}>{item.title}</Text>
@@ -99,78 +150,84 @@ export default function StatsDetailsScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={[tw`p-2 rounded-full`, { backgroundColor: colors.card }]}>
                     <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={[tw`text-lg font-bold`, { color: colors.text }]}>{getTitle()}</Text>
+                <Text style={[tw`text-lg font-bold`, { color: colors.text }]}>{title}</Text>
                 <View style={tw`w-10`} />
             </View>
 
-            <ScrollView contentContainerStyle={tw`pb-10 px-4`}>
-                {/* Overhead Graph */}
-                <View style={tw`items-center justify-center my-6`}>
-                    <LineChart
-                        data={{
-                            labels: labels,
-                            datasets: [{ data: data }]
-                        }}
-                        width={width - 32}
-                        height={220}
-                        yAxisLabel=""
-                        yAxisSuffix=""
-                        yAxisInterval={1}
-                        chartConfig={{
-                            backgroundColor: colors.background,
-                            backgroundGradientFrom: colors.card,
-                            backgroundGradientTo: colors.card,
-                            decimalPlaces: 0,
-                            color: (opacity = 1) => themeColor,
-                            labelColor: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
-                            style: {
-                                borderRadius: 16
-                            },
-                            propsForDots: {
-                                r: "4",
-                                strokeWidth: "2",
-                                stroke: themeColor
-                            }
-                        }}
-                        bezier
-                        style={{
-                            marginVertical: 8,
-                            borderRadius: 16
-                        }}
-                    />
+            {loading ? (
+                <View style={tw`flex-1 items-center justify-center`}>
+                    <ActivityIndicator size="large" color={themeColor} />
                 </View>
-
-                {/* Summary Cards */}
-                <View style={tw`flex-row justify-between mb-6`}>
-                    <View style={[tw`flex-1 p-4 rounded-2xl mr-2`, { backgroundColor: colors.card }]}>
-                        <Text style={[tw`text-xs uppercase mb-1`, { color: colors.textSecondary }]}>Total</Text>
-                        <Text style={[tw`text-2xl font-bold`, { color: themeColor }]}>
-                            {data[data.length - 1]}
-                        </Text>
+            ) : error ? (
+                <ScrollView
+                    contentContainerStyle={tw`flex-1 items-center justify-center p-8`}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeColor} />}
+                >
+                    <Ionicons name="cloud-offline-outline" size={48} color={colors.textSecondary} />
+                    <Text style={[tw`text-center mt-3`, { color: colors.textSecondary }]}>{error}</Text>
+                </ScrollView>
+            ) : statsData ? (
+                <ScrollView
+                    contentContainerStyle={tw`pb-10 px-4`}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeColor} />}
+                >
+                    {/* Chart */}
+                    <View style={tw`items-center justify-center my-6`}>
+                        <LineChart
+                            data={{
+                                labels: statsData.labels,
+                                datasets: [{ data: statsData.data.length > 0 ? statsData.data : [0] }]
+                            }}
+                            width={width - 32}
+                            height={220}
+                            yAxisLabel=""
+                            yAxisSuffix=""
+                            yAxisInterval={1}
+                            chartConfig={{
+                                backgroundColor: colors.background,
+                                backgroundGradientFrom: colors.card,
+                                backgroundGradientTo: colors.card,
+                                decimalPlaces: 0,
+                                color: () => themeColor,
+                                labelColor: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
+                                style: { borderRadius: 16 },
+                                propsForDots: { r: '4', strokeWidth: '2', stroke: themeColor },
+                            }}
+                            bezier
+                            style={{ marginVertical: 8, borderRadius: 16 }}
+                        />
                     </View>
-                    <View style={[tw`flex-1 p-4 rounded-2xl ml-2`, { backgroundColor: colors.card }]}>
-                        <Text style={[tw`text-xs uppercase mb-1`, { color: colors.textSecondary }]}>Avg</Text>
-                        <Text style={[tw`text-2xl font-bold`, { color: colors.text }]}>
-                            {Math.round(data.reduce((a, b) => a + b, 0) / data.length)}
-                        </Text>
-                    </View>
-                </View>
 
-                {/* History List Header */}
-                <View style={tw`mb-2`}>
-                    <Text style={[tw`text-lg font-bold`, { color: colors.text }]}>History</Text>
-                </View>
-
-                {/* List */}
-                <View>
-                    {history.map((item) => (
-                        <View key={item.id}>
-                            {renderItem({ item })}
+                    {/* Summary Cards */}
+                    <View style={tw`flex-row justify-between mb-6`}>
+                        <View style={[tw`flex-1 p-4 rounded-2xl mr-2`, { backgroundColor: colors.card }]}>
+                            <Text style={[tw`text-xs uppercase mb-1`, { color: colors.textSecondary }]}>Total</Text>
+                            <Text style={[tw`text-2xl font-bold`, { color: themeColor }]}>
+                                {statsData.total} <Text style={[tw`text-sm font-normal`, { color: colors.textSecondary }]}>{unit}</Text>
+                            </Text>
                         </View>
-                    ))}
-                </View>
+                        <View style={[tw`flex-1 p-4 rounded-2xl ml-2`, { backgroundColor: colors.card }]}>
+                            <Text style={[tw`text-xs uppercase mb-1`, { color: colors.textSecondary }]}>Avg / Day</Text>
+                            <Text style={[tw`text-2xl font-bold`, { color: colors.text }]}>
+                                {statsData.average} <Text style={[tw`text-sm font-normal`, { color: colors.textSecondary }]}>{unit}</Text>
+                            </Text>
+                        </View>
+                    </View>
 
-            </ScrollView>
+                    {/* History List */}
+                    <View style={tw`mb-2`}>
+                        <Text style={[tw`text-lg font-bold`, { color: colors.text }]}>This Week</Text>
+                    </View>
+
+                    <View>
+                        {statsData.history.map(item => (
+                            <View key={item.id}>
+                                {renderItem({ item })}
+                            </View>
+                        ))}
+                    </View>
+                </ScrollView>
+            ) : null}
         </View>
     );
 }

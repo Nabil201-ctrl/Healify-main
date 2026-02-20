@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { AuthService } from '@/services/auth.service';
+import { useAuth } from '@/context/AuthContext';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 
@@ -14,6 +15,7 @@ export default function RegisterScreen() {
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
+    const { onAuthSuccess } = useAuth();
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
 
@@ -26,6 +28,7 @@ export default function RegisterScreen() {
         setIsLoading(true);
         try {
             await AuthService.register(email, password, firstName, lastName);
+            onAuthSuccess(); // mark as authenticated before navigating to onboarding
             router.replace('/(onboarding)/onboarding');
         } catch (error: any) {
             Alert.alert('Error', error.response?.data?.message || 'Registration failed');

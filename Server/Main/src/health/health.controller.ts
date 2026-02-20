@@ -34,7 +34,6 @@ export class HealthController {
     const userId = req.user.userId;
 
     try {
-      // Check cache first for faster response
       const cached = await this.cacheService.getHealthData(userId, 'activity');
       if (cached) {
         console.log(`[Health] Cache HIT for activity data, userId: ${userId}`);
@@ -42,18 +41,12 @@ export class HealthController {
       }
 
       console.log(`[Health] Cache MISS for activity data, userId: ${userId}`);
-      // Fetch from microservice via RabbitMQ
-      const data = await this.rabbitMQService.fetchHealthData('activity');
-
-      // Cache for 5 minutes
+      const data = await this.rabbitMQService.fetchHealthData('activity', userId);
       await this.cacheService.cacheHealthData(userId, 'activity', data, 300);
       return { ...data, fromCache: false };
     } catch (error) {
       console.error('[Health] Failed to fetch activity data:', error);
-      throw new HttpException(
-        'Failed to fetch activity data',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to fetch activity data', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -67,7 +60,6 @@ export class HealthController {
     const userId = req.user.userId;
 
     try {
-      // Check cache first
       const cached = await this.cacheService.getHealthData(userId, 'heart-rate');
       if (cached) {
         console.log(`[Health] Cache HIT for heart-rate data, userId: ${userId}`);
@@ -75,17 +67,12 @@ export class HealthController {
       }
 
       console.log(`[Health] Cache MISS for heart-rate data, userId: ${userId}`);
-      const data = await this.rabbitMQService.fetchHealthData('heart-rate');
-
-      // Cache for 5 minutes
+      const data = await this.rabbitMQService.fetchHealthData('heart-rate', userId);
       await this.cacheService.cacheHealthData(userId, 'heart-rate', data, 300);
       return { ...data, fromCache: false };
     } catch (error) {
       console.error('[Health] Failed to fetch heart rate data:', error);
-      throw new HttpException(
-        'Failed to fetch heart rate data',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to fetch heart rate data', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -99,7 +86,6 @@ export class HealthController {
     const userId = req.user.userId;
 
     try {
-      // Check cache first
       const cached = await this.cacheService.getHealthData(userId, 'sleep');
       if (cached) {
         console.log(`[Health] Cache HIT for sleep data, userId: ${userId}`);
@@ -107,72 +93,59 @@ export class HealthController {
       }
 
       console.log(`[Health] Cache MISS for sleep data, userId: ${userId}`);
-      const data = await this.rabbitMQService.fetchHealthData('sleep');
-
-      // Cache for 5 minutes
+      const data = await this.rabbitMQService.fetchHealthData('sleep', userId);
       await this.cacheService.cacheHealthData(userId, 'sleep', data, 300);
       return { ...data, fromCache: false };
     } catch (error) {
       console.error('[Health] Failed to fetch sleep data:', error);
-      throw new HttpException(
-        'Failed to fetch sleep data',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to fetch sleep data', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
-  123:
-    124: @UseGuards(JwtAuthGuard)
-  125:   @ApiBearerAuth('JWT-auth')
-  126:   @Get('quick-stats')
-  127:   @ApiOperation({ summary: 'Get user quick stats (distance, floors, etc.)' })
-  128:   @ApiResponse({ status: 200, description: 'Quick stats retrieved successfully' })
-  129: async getQuickStats(@Request() req) {
-    130: const userId = req.user.userId;
-    131:
-    132: try {
-      133: const cached = await this.cacheService.getHealthData(userId, 'quick-stats');
-      134: if (cached) {
-        135: return { ...cached, fromCache: true };
-        136:
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Get('quick-stats')
+  @ApiOperation({ summary: 'Get user quick stats (distance, floors, etc.)' })
+  @ApiResponse({ status: 200, description: 'Quick stats retrieved successfully' })
+  async getQuickStats(@Request() req) {
+    const userId = req.user.userId;
+
+    try {
+      const cached = await this.cacheService.getHealthData(userId, 'quick-stats');
+      if (cached) {
+        return { ...cached, fromCache: true };
       }
-      137:
-      138: const data = await this.rabbitMQService.fetchHealthData('quick-stats');
-      139: await this.cacheService.cacheHealthData(userId, 'quick-stats', data, 300);
-      140: return { ...data, fromCache: false };
-      141:
+
+      const data = await this.rabbitMQService.fetchHealthData('quick-stats', userId);
+      await this.cacheService.cacheHealthData(userId, 'quick-stats', data, 300);
+      return { ...data, fromCache: false };
     } catch (error) {
-      142: console.error('[Health] Failed to fetch quick stats:', error);
-      143: throw new HttpException('Failed to fetch quick stats', HttpStatus.SERVICE_UNAVAILABLE);
-      144:
+      console.error('[Health] Failed to fetch quick stats:', error);
+      throw new HttpException('Failed to fetch quick stats', HttpStatus.SERVICE_UNAVAILABLE);
     }
-    145:
   }
-  146:
-    147: @UseGuards(JwtAuthGuard)
-  148:   @ApiBearerAuth('JWT-auth')
-  149:   @Get('insights')
-  150:   @ApiOperation({ summary: 'Get user health insights' })
-  151:   @ApiResponse({ status: 200, description: 'Insights retrieved successfully' })
-  152: async getInsights(@Request() req) {
-    153: const userId = req.user.userId;
-    154:
-    155: try {
-      156: const cached = await this.cacheService.getHealthData(userId, 'insights');
-      157: if (cached) {
-        158: return { insights: cached, fromCache: true };
-        159:
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Get('insights')
+  @ApiOperation({ summary: 'Get user health insights' })
+  @ApiResponse({ status: 200, description: 'Insights retrieved successfully' })
+  async getInsights(@Request() req) {
+    const userId = req.user.userId;
+
+    try {
+      const cached = await this.cacheService.getHealthData(userId, 'insights');
+      if (cached) {
+        return { insights: cached, fromCache: true };
       }
-      160:
-      161: const data = await this.rabbitMQService.fetchHealthData('insights');
-      162: await this.cacheService.cacheHealthData(userId, 'insights', data, 300);
-      163: return { insights: data, fromCache: false };
-      164:
+
+      const data = await this.rabbitMQService.fetchHealthData('insights', userId);
+      await this.cacheService.cacheHealthData(userId, 'insights', data, 300);
+      return { insights: data, fromCache: false };
     } catch (error) {
-      165: console.error('[Health] Failed to fetch insights:', error);
-      166: throw new HttpException('Failed to fetch insights', HttpStatus.SERVICE_UNAVAILABLE);
-      167:
+      console.error('[Health] Failed to fetch insights:', error);
+      throw new HttpException('Failed to fetch insights', HttpStatus.SERVICE_UNAVAILABLE);
     }
-    168:
   }
 
   @Post('sync')
@@ -196,10 +169,7 @@ export class HealthController {
       };
     } catch (error) {
       console.error('[Health] Failed to sync health data:', error);
-      throw new HttpException(
-        'Failed to sync health data',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to sync health data', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
