@@ -33,6 +33,7 @@ export interface SleepData {
 
 export interface QuickStatsData {
     distance: string;
+    activeTime: string;
     floors: string;
     stress: string;
     recovery: string;

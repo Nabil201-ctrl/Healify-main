@@ -16,6 +16,15 @@ import { HealthService, ActivityData, HeartRateData, SleepData, QuickStatsData, 
 import { useFocusEffect } from 'expo-router';
 import { DashboardSkeleton } from '@/components/Skeletons';
 
+// Module-level cache to persist data across component unmounts (e.g., tab switches)
+let lastFetchTime: number | null = null;
+let cachedUser: UserProfile | null = null;
+let cachedActivity: ActivityData | null = null;
+let cachedHeartRate: HeartRateData | null = null;
+let cachedSleep: SleepData | null = null;
+let cachedQuickStats: QuickStatsData | null = null;
+let cachedInsights: InsightData[] = [];
+
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -36,7 +45,13 @@ export default function HomeScreen() {
     const CACHE_TTL = 300000;
 
     // Check if we can use existing data (must have user data, and fetch is recent)
-    if (!forceRefresh && user && window.lastDashboardFetch && Date.now() - window.lastDashboardFetch < CACHE_TTL) {
+    if (!forceRefresh && lastFetchTime && Date.now() - lastFetchTime < CACHE_TTL && cachedUser) {
+      setUser(cachedUser);
+      if (cachedActivity) setActivity(cachedActivity);
+      if (cachedHeartRate) setHeartRate(cachedHeartRate);
+      if (cachedSleep) setSleep(cachedSleep);
+      if (cachedQuickStats) setQuickStats(cachedQuickStats);
+      if (cachedInsights) setInsights(cachedInsights);
       return;
     }
 
@@ -50,14 +65,20 @@ export default function HomeScreen() {
         HealthService.getInsights().catch(e => [])
       ]);
 
+      cachedUser = userData;
+      cachedActivity = activityData;
+      cachedHeartRate = heartRateData;
+      cachedSleep = sleepData;
+      cachedQuickStats = quickStatsData;
+      cachedInsights = insightsData;
+      lastFetchTime = Date.now();
+
       setUser(userData);
       if (activityData) setActivity(activityData);
       if (heartRateData) setHeartRate(heartRateData);
       if (sleepData) setSleep(sleepData);
       if (quickStatsData) setQuickStats(quickStatsData);
       if (insightsData) setInsights(insightsData);
-
-      window.lastDashboardFetch = Date.now();
     } catch (error) {
       console.log('Failed to load data', error);
     }
