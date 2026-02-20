@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from "dotenv"
 dotenv.config()
 import { EstablishConnection, getChannel, publishResponse, publishNotification, publishAIContextUpdate, HEALTH_QUEUE, HEALTH_SYNC_QUEUE, AI_CONTEXT_REQUEST_QUEUE } from './config/Mq.js';
+import { fetchGoogleFitData } from './config/googleFit.js';
 import swaggerUi from 'swagger-ui-express';
 import { specs } from './config/swagger.js';
 
@@ -30,6 +31,39 @@ mongoose.connect(MONGODB_URI)
     .then(() => console.log("Connected to MongoDB"))
     .catch(err => console.error("MongoDB connection error:", err));
 
+// Upstash Redis setup
+import { Redis } from '@upstash/redis';
+const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
+const CACHE_TTL = 300; // 5 minutes cache
+
+async function getCachedData(key, fetcher) {
+    try {
+        if (redis) {
+            const cached = await redis.get(key);
+            if (cached) {
+                console.log(`[HealthMicroservice Cache] HIT: ${key}`);
+                return typeof cached === 'string' ? JSON.parse(cached) : cached;
+            }
+        }
+    } catch (err) {
+        console.error(`[HealthMicroservice] Cache GET error for ${key}:`, err);
+    }
+
+    const data = await fetcher();
+
+    try {
+        if (redis && data) {
+            await redis.setex(key, CACHE_TTL, JSON.stringify(data));
+        }
+    } catch (err) {
+        console.error(`[HealthMicroservice] Cache SET error for ${key}:`, err);
+    }
+    return data;
+}
+
 // ─────────────────────────────────────────────
 // Data builders: read from MongoDB, not memory
 // ─────────────────────────────────────────────
@@ -39,7 +73,9 @@ mongoose.connect(MONGODB_URI)
  * Returns a chart-friendly structure matching the frontend's HealthService interfaces.
  */
 async function buildActivityData(userId) {
-    const logs = await HealthLog.find({ userId }).sort({ date: -1 }).limit(7).lean();
+    const logs = await getCachedData(`health_micro:logs:activity:7:${userId}`, async () => {
+        return await HealthLog.find({ userId }).sort({ date: -1 }).limit(7).lean();
+    });
 
     const ordered = logs.reverse(); // oldest → newest
 
@@ -72,7 +108,9 @@ async function buildActivityData(userId) {
  * Build heart rate data from the last 7 HealthLog records.
  */
 async function buildHeartRateData(userId) {
-    const logs = await HealthLog.find({ userId }).sort({ date: -1 }).limit(7).lean();
+    const logs = await getCachedData(`health_micro:logs:heartRate:7:${userId}`, async () => {
+        return await HealthLog.find({ userId }).sort({ date: -1 }).limit(7).lean();
+    });
 
     const ordered = logs.reverse();
     const TIME_LABELS = ['6AM', '9AM', '12PM', '3PM', '6PM', '9PM'];
@@ -104,7 +142,9 @@ async function buildHeartRateData(userId) {
  * Build sleep data from the last 7 HealthLog records.
  */
 async function buildSleepData(userId) {
-    const logs = await HealthLog.find({ userId }).sort({ date: -1 }).limit(7).lean();
+    const logs = await getCachedData(`health_micro:logs:sleep:7:${userId}`, async () => {
+        return await HealthLog.find({ userId }).sort({ date: -1 }).limit(7).lean();
+    });
 
     const ordered = logs.reverse();
     const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -140,7 +180,9 @@ async function buildSleepData(userId) {
  * Build quick stats from the most recent HealthLog.
  */
 async function buildQuickStats(userId) {
-    const latest = await HealthLog.findOne({ userId }).sort({ date: -1 }).lean();
+    const latest = await getCachedData(`health_micro:logs:quickStats:${userId}`, async () => {
+        return await HealthLog.findOne({ userId }).sort({ date: -1 }).lean();
+    });
 
     const steps = latest?.steps || 0;
     const distanceKm = steps > 0 ? parseFloat((steps * 0.0008).toFixed(1)) : 0;
@@ -159,7 +201,9 @@ async function buildQuickStats(userId) {
  * Build insights from MongoDB Insight documents for the user.
  */
 async function buildInsights(userId) {
-    const insights = await Insight.find({ userId }).sort({ timestamp: -1 }).limit(5).lean();
+    const insights = await getCachedData(`health_micro:logs:insights:5:${userId}`, async () => {
+        return await Insight.find({ userId }).sort({ timestamp: -1 }).limit(5).lean();
+    });
 
     if (!insights.length) return [];
 
@@ -205,6 +249,19 @@ async function analyzeAndStore(data) {
                 await Insight.create({ userId, date: today, type: 'ACTIVITY_DROP', message: msg, severity: 'INFO' });
             }
         }
+    }
+
+    try {
+        if (redis) {
+            await redis.del(`health_micro:logs:activity:7:${userId}`);
+            await redis.del(`health_micro:logs:heartRate:7:${userId}`);
+            await redis.del(`health_micro:logs:sleep:7:${userId}`);
+            await redis.del(`health_micro:logs:quickStats:${userId}`);
+            await redis.del(`health_micro:logs:insights:5:${userId}`);
+            console.log(`[HealthMicroservice Cache] Invalidated caches for ${userId}`);
+        }
+    } catch (err) {
+        console.error("Cache invalidation error:", err);
     }
 
     return { log, insights };
@@ -254,8 +311,24 @@ async function consumeHealthSync() {
         console.log("Waiting for health sync data...");
         channel.consume(HEALTH_SYNC_QUEUE, async (msg) => {
             if (msg !== null) {
-                const content = JSON.parse(msg.content.toString());
+                let content = JSON.parse(msg.content.toString());
                 console.log("Received health sync data:", content);
+
+                if (content.type === 'GOOGLE_FIT_SYNC') {
+                    console.log("Fetching Google Fit data for user:", content.userId);
+                    try {
+                        const fitData = await fetchGoogleFitData(content.accessToken);
+                        content = {
+                            userId: content.userId,
+                            steps: fitData.steps,
+                            heartRate: fitData.heartRate
+                        };
+                    } catch (err) {
+                        console.error('Google Fit Sync Error:', err);
+                        channel.ack(msg);
+                        return;
+                    }
+                }
 
                 // System AI Analysis & persist to MongoDB
                 const { log, insights } = await analyzeAndStore(content);
