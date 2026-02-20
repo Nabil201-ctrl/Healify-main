@@ -25,8 +25,10 @@ export class CacheService {
       } else {
         await this.redisClient.set(key, serialized);
       }
-    } catch (error) {
-      console.error(`[Cache] Error setting key ${key}:`, error);
+    } catch (error: any) {
+      if (error?.cause?.code !== 'ENOTFOUND') {
+        console.error(`[Cache] Error setting key ${key}:`, error);
+      }
     }
   }
 
@@ -52,8 +54,10 @@ export class CacheService {
       } catch {
         return data as T;
       }
-    } catch (error) {
-      console.error(`[Cache] Error getting key ${key}:`, error);
+    } catch (error: any) {
+      if (error?.cause?.code !== 'ENOTFOUND') {
+        console.error(`[Cache] Error getting key ${key}:`, error);
+      }
       return null;
     }
   }
@@ -63,8 +67,10 @@ export class CacheService {
 
     try {
       await this.redisClient.del(key);
-    } catch (error) {
-      console.error(`[Cache] Error deleting key ${key}:`, error);
+    } catch (error: any) {
+      if (error?.cause?.code !== 'ENOTFOUND') {
+        console.error(`[Cache] Error deleting key ${key}:`, error);
+      }
     }
   }
 
@@ -74,8 +80,10 @@ export class CacheService {
     try {
       const result = await this.redisClient.exists(key);
       return result === 1;
-    } catch (error) {
-      console.error(`[Cache] Error checking existence of key ${key}:`, error);
+    } catch (error: any) {
+      if (error?.cause?.code !== 'ENOTFOUND') {
+        console.error(`[Cache] Error checking existence of key ${key}:`, error);
+      }
       return false;
     }
   }
@@ -101,8 +109,10 @@ export class CacheService {
       }
 
       return value;
-    } catch (error) {
-      console.error(`[Cache] Error incrementing key ${key}:`, error);
+    } catch (error: any) {
+      if (error?.cause?.code !== 'ENOTFOUND') {
+        console.error(`[Cache] Error incrementing key ${key}:`, error);
+      }
       return 0;
     }
   }

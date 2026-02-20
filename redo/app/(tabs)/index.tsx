@@ -155,7 +155,7 @@ export default function HomeScreen() {
           />
           <HealthMetricCard
             title="Active Time"
-            value={quickStats?.distance ? quickStats.distance : '--'}
+            value={quickStats?.activeTime ? quickStats.activeTime : '--'}
             unit="today"
             icon="flash"
             accentColor={colors.tint}

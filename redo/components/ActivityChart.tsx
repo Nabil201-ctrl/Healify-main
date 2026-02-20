@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, useWindowDimensions, ActivityIndicator, StyleSheet } from 'react-native';
-import { BarChart } from 'react-native-chart-kit';
+import { BarChart } from 'react-native-gifted-charts';
 import { API_URL } from '@/services/api';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -23,12 +23,7 @@ export default function ActivityChart() {
                 const result = await response.json();
                 setData(result);
             } catch (error) {
-                console.log('Failed to fetch activity data, using mock data');
-                setData({
-                    labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-                    datasets: [{ data: [30, 45, 28, 80, 50, 43, 60] }],
-                    summary: { dailyAvg: 48, weeklyTotal: 336, goal: 60 }
-                });
+                console.log('Failed to fetch activity data, no mock data fallback');
             } finally {
                 setLoading(false);
             }
@@ -36,30 +31,6 @@ export default function ActivityChart() {
 
         fetchData();
     }, []);
-
-    const chartConfig = {
-        backgroundColor: isDark ? '#1e293b' : '#ffffff',
-        backgroundGradientFrom: isDark ? '#1e293b' : '#ffffff',
-        backgroundGradientTo: isDark ? '#1e293b' : '#ffffff',
-        decimalPlaces: 0,
-        color: (opacity = 1) => isDark
-            ? `rgba(129, 140, 248, ${opacity})` // Indigo 400
-            : `rgba(79, 70, 229, ${opacity})`, // Indigo 600
-        labelColor: (opacity = 1) => isDark
-            ? `rgba(148, 163, 184, ${opacity})`
-            : `rgba(100, 116, 139, ${opacity})`,
-        style: {
-            borderRadius: 16,
-        },
-        barPercentage: 0.5,
-        propsForBackgroundLines: {
-            stroke: isDark ? '#334155' : '#e2e8f0',
-            strokeWidth: 1,
-        },
-        propsForLabels: {
-            fontFamily: 'BricolageGrotesque',
-        },
-    };
 
     if (loading) {
         return (
@@ -69,7 +40,7 @@ export default function ActivityChart() {
         );
     }
 
-    if (!data || !data.datasets) {
+    if (!data || !data.datasets || data.datasets.length === 0) {
         return (
             <View style={[styles.container, styles.loadingContainer, { backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb' }]}>
                 <Text style={{ color: colors.tabIconDefault }}>No activity data available</Text>
@@ -77,31 +48,49 @@ export default function ActivityChart() {
         );
     }
 
+    // Transform the dataset format (chart-kit style) to gifted-charts style
+    const maxValue = data?.datasets?.[0]?.data?.length ? Math.max(...data.datasets[0].data) : 0;
+    const chartData = data?.datasets?.[0]?.data?.map((val: number, index: number) => ({
+        value: val,
+        label: data.labels?.[index] || '',
+        frontColor: isDark ? '#818cf8' : '#4f46e5', // Indigo
+        topLabelComponent: () => (
+            <Text style={{ color: isDark ? '#9ca3af' : '#6b7280', fontSize: 10, marginBottom: 4 }}>
+                {val > 1000 ? `${(val / 1000).toFixed(1)}k` : val}
+            </Text>
+        )
+    })) || [];
+
     return (
         <View style={[styles.container, { backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb' }]}>
             <View style={styles.header}>
-                <Text style={[styles.title, { color: colors.text }]}>⚡ Activity Minutes</Text>
+                <Text style={[styles.title, { color: colors.text }]}>⚡ Daily Steps</Text>
                 <Text style={[styles.subtitle, { color: isDark ? '#60a5fa' : '#2563eb' }]}>This Week</Text>
             </View>
 
-            <BarChart
-                data={data}
-                width={chartWidth}
-                height={200}
-                chartConfig={chartConfig}
-                style={styles.chart}
-                showValuesOnTopOfBars
-                withCustomBarColorFromData={false}
-                flatColor
-                fromZero
-                yAxisLabel=""
-                yAxisSuffix=""
-            />
+            <View style={{ marginBottom: 16 }}>
+                <BarChart
+                    data={chartData}
+                    barWidth={chartWidth > 350 ? 24 : 18}
+                    spacing={chartWidth > 350 ? 20 : 16}
+                    roundedTop
+                    roundedBottom
+                    hideRules
+                    xAxisThickness={0}
+                    yAxisThickness={0}
+                    yAxisTextStyle={{ color: 'transparent' }} // Hide Y axis texts because we have top labels
+                    noOfSections={4}
+                    maxValue={maxValue * 1.2} // Give headroom for labels
+                    backgroundColor="transparent"
+                    xAxisLabelTextStyle={{ color: isDark ? '#9ca3af' : '#6b7280', fontSize: 11 }}
+                    isAnimated
+                />
+            </View>
 
             <View style={styles.statsRow}>
-                <StatItem label="Daily Avg" value={`${data.summary?.dailyAvg} min`} isDark={isDark} />
-                <StatItem label="Weekly Total" value={`${data.summary?.weeklyTotal} min`} isDark={isDark} />
-                <StatItem label="Goal" value={`${data.summary?.goal} min/day`} isDark={isDark} />
+                <StatItem label="Daily Avg" value={`${data.summary?.dailyAvg} steps`} isDark={isDark} />
+                <StatItem label="Weekly Total" value={`${data.summary?.weeklyTotal} steps`} isDark={isDark} />
+                <StatItem label="Goal" value={`${data.summary?.goal} steps/day`} isDark={isDark} />
             </View>
         </View>
     );

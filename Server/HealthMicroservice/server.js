@@ -40,17 +40,6 @@ mongoose.connect(MONGODB_URI)
  */
 async function buildActivityData(userId) {
     const logs = await HealthLog.find({ userId }).sort({ date: -1 }).limit(7).lean();
-    if (!logs || logs.length === 0) {
-        return {
-            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-            datasets: [{ data: [6200, 7500, 5800, 8100, 7200, 8500, 6800] }],
-            summary: {
-                dailyAvg: 7157,
-                weeklyTotal: 50100,
-                goal: 10000,
-            },
-        };
-    }
 
     const ordered = logs.reverse(); // oldest → newest
 
@@ -84,13 +73,6 @@ async function buildActivityData(userId) {
  */
 async function buildHeartRateData(userId) {
     const logs = await HealthLog.find({ userId }).sort({ date: -1 }).limit(7).lean();
-    if (!logs || logs.length === 0) {
-        return {
-            labels: ['6AM', '9AM', '12PM', '3PM', '6PM', '9PM'],
-            datasets: [{ data: [65, 58, 72, 85, 78, 68] }],
-            stats: { min: 58, avg: 71, max: 85, resting: 62 },
-        };
-    }
 
     const ordered = logs.reverse();
     const TIME_LABELS = ['6AM', '9AM', '12PM', '3PM', '6PM', '9PM'];
@@ -123,25 +105,6 @@ async function buildHeartRateData(userId) {
  */
 async function buildSleepData(userId) {
     const logs = await HealthLog.find({ userId }).sort({ date: -1 }).limit(7).lean();
-    if (!logs || logs.length === 0) {
-        return {
-            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-            data: [
-                [5.1, 1.2, 0.8],
-                [4.8, 1.5, 0.9],
-                [5.5, 1.0, 1.0],
-                [4.2, 1.8, 0.5],
-                [6.0, 1.2, 1.2],
-                [4.5, 1.5, 0.8],
-                [5.2, 1.4, 0.9]
-            ],
-            lastNight: {
-                duration: '7h 30m',
-                quality: 'Good',
-                bedtime: '10:45 PM',
-            },
-        };
-    }
 
     const ordered = logs.reverse();
     const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -178,15 +141,6 @@ async function buildSleepData(userId) {
  */
 async function buildQuickStats(userId) {
     const latest = await HealthLog.findOne({ userId }).sort({ date: -1 }).lean();
-    if (!latest) {
-        return {
-            distance: '4.2 km',
-            activeTime: '2.5 h',
-            floors: '12',
-            stress: 'Low',
-            recovery: '78%',
-        };
-    }
 
     const steps = latest?.steps || 0;
     const distanceKm = steps > 0 ? parseFloat((steps * 0.0008).toFixed(1)) : 0;
@@ -207,17 +161,7 @@ async function buildQuickStats(userId) {
 async function buildInsights(userId) {
     const insights = await Insight.find({ userId }).sort({ timestamp: -1 }).limit(5).lean();
 
-    if (!insights || insights.length === 0) {
-        return [{
-            label: 'Great Activity',
-            text: "You're 15% more active than last week. Keep it up!",
-            type: 'positive',
-        }, {
-            label: 'Hydration',
-            text: "Don't forget to drink water today. Target: 2L.",
-            type: 'info',
-        }];
-    }
+    if (!insights.length) return [];
 
     return insights.map(i => ({
         label: i.type.replace(/_/g, ' '),

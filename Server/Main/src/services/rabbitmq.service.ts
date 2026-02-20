@@ -30,6 +30,14 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
   private async connect() {
     try {
       this.connection = await amqplib.connect(this.RABBITMQ_URL);
+
+      this.connection.on('error', (err) => {
+        console.error('RabbitMQ connection error:', err);
+      });
+      this.connection.on('close', () => {
+        console.warn('RabbitMQ connection closed');
+      });
+
       this.channel = await this.connection.createChannel();
 
       // Limit concurrent message processing for better throughput

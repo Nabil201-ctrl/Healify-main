@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Text, useWindowDimensions, StyleSheet } from 'react-native';
-import { StackedBarChart } from 'react-native-chart-kit';
+import React, { useEffect, useState } from 'react';
+import { View, Text, useWindowDimensions, ActivityIndicator, StyleSheet } from 'react-native';
+import { BarChart } from 'react-native-gifted-charts';
+import { API_URL } from '@/services/api';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 
@@ -11,47 +12,62 @@ export function SleepChart() {
     const colors = Colors[colorScheme ?? 'light'];
 
     const chartWidth = width - 72;
+    const [loading, setLoading] = useState(true);
+    const [data, setData] = useState<any>(null);
 
-    const sleepData = {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        data: [
-            [6, 1.5, 0.5], // Deep, Light, REM
-            [5.5, 2, 0.5],
-            [7, 1, 0.5],
-            [6.5, 1.5, 0.5],
-            [5, 2.5, 0.5],
-            [8, 1, 1],
-            [7.5, 1, 0.5],
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const response = await fetch(`${API_URL}/health/sleep`);
+                if (!response.ok) throw new Error("Failed to fetch");
+                const result = await response.json();
+
+                // Add required styles for StackedBarChart directly into the result
+                const formattedResult = {
+                    ...result,
+                    barColors: isDark
+                        ? ['#6366f1', '#818cf8', '#a78bfa']
+                        : ['#4f46e5', '#6366f1', '#8b5cf6'],
+                    legend: ['Deep', 'Light', 'REM']
+                };
+
+                setData(formattedResult);
+            } catch (error) {
+                console.log('Failed to fetch sleep data, no mock data fallback');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [isDark]);
+
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.loadingContainer, { backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb' }]}>
+                <ActivityIndicator size="large" color="#8b5cf6" />
+            </View>
+        );
+    }
+
+    if (!data || !data.data || data.data.length === 0) {
+        return (
+            <View style={[styles.container, styles.loadingContainer, { backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb' }]}>
+                <Text style={{ color: colors.tabIconDefault }}>No sleep data available</Text>
+            </View>
+        );
+    }
+
+    const sleepStackData = data?.data?.map((vals: number[], index: number) => ({
+        stacks: [
+            { value: vals[0] || 0, color: isDark ? '#6366f1' : '#4f46e5' }, // Deep
+            { value: vals[1] || 0, color: isDark ? '#8b5cf6' : '#8b5cf6' }, // Light
+            { value: vals[2] || 0, color: isDark ? '#a78bfa' : '#c084fc' }  // REM
         ],
-        // Indigo spectrum: Indigo-500, Indigo-400, Violet-400
-        barColors: isDark
-            ? ['#6366f1', '#818cf8', '#a78bfa']
-            : ['#4f46e5', '#6366f1', '#8b5cf6'],
-        legend: ['Deep', 'Light', 'REM']
-    };
+        label: data.labels?.[index] || ''
+    })) || [];
 
-    const chartConfig = {
-        backgroundColor: isDark ? '#1e293b' : '#ffffff',
-        backgroundGradientFrom: isDark ? '#1e293b' : '#ffffff',
-        backgroundGradientTo: isDark ? '#1e293b' : '#ffffff',
-        decimalPlaces: 1,
-        color: (opacity = 1) => isDark
-            ? `rgba(148, 163, 184, ${opacity})`
-            : `rgba(100, 116, 139, ${opacity})`,
-        labelColor: (opacity = 1) => isDark
-            ? `rgba(148, 163, 184, ${opacity})`
-            : `rgba(100, 116, 139, ${opacity})`,
-        style: {
-            borderRadius: 16,
-        },
-        propsForBackgroundLines: {
-            stroke: isDark ? '#334155' : '#e2e8f0',
-            strokeWidth: 1,
-        },
-        propsForLabels: {
-            fontFamily: 'BricolageGrotesque',
-        },
-    };
+    const maxValue = data?.data?.length ? Math.max(...data.data.map((vals: number[]) => vals.reduce((a, b) => a + b, 0))) : 0;
 
     return (
         <View style={[styles.container, { backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb' }]}>
@@ -60,14 +76,24 @@ export function SleepChart() {
                 <Text style={[styles.subtitle, { color: isDark ? '#a78bfa' : '#9333ea' }]}>Last 7 Days</Text>
             </View>
 
-            <StackedBarChart
-                data={sleepData}
-                width={chartWidth}
-                height={200}
-                chartConfig={chartConfig}
-                style={styles.chart}
-                hideLegend={true}
-            />
+            <View style={{ marginBottom: 16 }}>
+                <BarChart
+                    stackData={sleepStackData}
+                    barWidth={chartWidth > 350 ? 24 : 18}
+                    spacing={chartWidth > 350 ? 20 : 16}
+                    roundedTop
+                    roundedBottom
+                    hideRules
+                    xAxisThickness={0}
+                    yAxisThickness={0}
+                    yAxisTextStyle={{ color: isDark ? '#9ca3af' : '#6b7280', fontSize: 11 }}
+                    noOfSections={4}
+                    maxValue={maxValue * 1.2 || 12}
+                    backgroundColor="transparent"
+                    xAxisLabelTextStyle={{ color: isDark ? '#9ca3af' : '#6b7280', fontSize: 11 }}
+                    isAnimated
+                />
+            </View>
 
             <View style={styles.legendRow}>
                 <LegendItem color={isDark ? '#6366f1' : '#4f46e5'} label="Deep" isDark={isDark} />
@@ -76,9 +102,9 @@ export function SleepChart() {
             </View>
 
             <View style={styles.statsRow}>
-                <StatItem label="Last Night" value="7h 30m" color={colors.text} isDark={isDark} />
-                <StatItem label="Quality" value="85%" color={isDark ? '#4ade80' : '#16a34a'} isDark={isDark} />
-                <StatItem label="Bedtime" value="10:45 PM" color={colors.text} isDark={isDark} />
+                <StatItem label="Last Night" value={data.lastNight?.duration || '--'} color={colors.text} isDark={isDark} />
+                <StatItem label="Quality" value={data.lastNight?.quality || '--'} color={isDark ? '#4ade80' : '#16a34a'} isDark={isDark} />
+                <StatItem label="Bedtime" value={data.lastNight?.bedtime || '--'} color={colors.text} isDark={isDark} />
             </View>
         </View>
     );
@@ -109,6 +135,11 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 2,
+    },
+    loadingContainer: {
+        height: 256,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     header: {
         flexDirection: 'row',
