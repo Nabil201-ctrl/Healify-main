@@ -7,6 +7,7 @@ import { AuthService } from '@/services/auth.service';
 import { useAuth } from '@/context/AuthContext';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { GoogleAuthWebView } from '@/components/GoogleAuthWebView';
 
 export default function RegisterScreen() {
     const [firstName, setFirstName] = useState('');
@@ -14,6 +15,8 @@ export default function RegisterScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [showGoogleAuth, setShowGoogleAuth] = useState(false);
+
     const router = useRouter();
     const { onAuthSuccess } = useAuth();
     const colorScheme = useColorScheme();
@@ -32,6 +35,19 @@ export default function RegisterScreen() {
             router.replace('/(onboarding)/onboarding');
         } catch (error: any) {
             Alert.alert('Error', error.response?.data?.message || 'Registration failed');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleGoogleSuccess = async (userInfo: any) => {
+        try {
+            setIsLoading(true);
+            await AuthService.googleLogin(userInfo.email, userInfo.given_name || 'Google', userInfo.family_name || 'User', userInfo.picture);
+            onAuthSuccess();
+            router.replace('/(onboarding)/onboarding');
+        } catch (error: any) {
+            Alert.alert('Error', error.response?.data?.message || 'Google Sign Up failed');
         } finally {
             setIsLoading(false);
         }
@@ -68,9 +84,29 @@ export default function RegisterScreen() {
 
                 <Button title="Sign Up" onPress={handleRegister} isLoading={isLoading} />
 
+                <View style={styles.divider}>
+                    <View style={[styles.line, { backgroundColor: colors.tabIconDefault }]} />
+                    <Text style={[styles.orText, { color: colors.tabIconDefault }]}>OR</Text>
+                    <View style={[styles.line, { backgroundColor: colors.tabIconDefault }]} />
+                </View>
+
+                <Button
+                    title="Sign up with Google"
+                    onPress={() => setShowGoogleAuth(true)}
+                    isLoading={isLoading}
+                    style={{ backgroundColor: '#DB4437' }}
+                />
+
                 <TouchableOpacity onPress={() => router.back()} style={styles.linkContainer}>
                     <Text style={[styles.linkText, { color: colors.tint }]}>Already have an account? Sign In</Text>
                 </TouchableOpacity>
+
+                <GoogleAuthWebView
+                    visible={showGoogleAuth}
+                    onClose={() => setShowGoogleAuth(false)}
+                    onSuccess={handleGoogleSuccess}
+                    onError={(err) => Alert.alert('Google Sign Up Error', err)}
+                />
             </View>
         </View>
     );
@@ -102,6 +138,21 @@ const styles = StyleSheet.create({
     },
     linkText: {
         fontSize: 16,
+        fontWeight: '600',
+    },
+    divider: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: 20,
+    },
+    line: {
+        flex: 1,
+        height: 1,
+    },
+    orText: {
+        width: 50,
+        textAlign: 'center',
+        fontSize: 14,
         fontWeight: '600',
     },
 });

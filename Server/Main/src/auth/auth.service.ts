@@ -120,6 +120,36 @@ export class AuthService {
     return tokens;
   }
 
+  async googleSignIn(email: string, firstName: string, lastName: string) {
+    let user = await this.usersService.findOneByEmail(email);
+    if (!user) {
+      // Auto-register Google User
+      const randomPassword = require('crypto').randomBytes(16).toString('hex');
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+      user = await this.usersService.create({
+        email,
+        firstName,
+        lastName: lastName || '',
+        password: hashedPassword,
+      }) as any;
+    }
+
+    const userId = (user as any)._id?.toString() || (user as any).id;
+    const tokens = await this.getTokens(userId, user.email);
+    await this.updateRefreshToken(userId, tokens.refreshToken);
+
+    const userObj = typeof (user as any).toObject === 'function' ? (user as any).toObject() : user;
+    const { password: _, refreshToken: __, _id, __v, ...userWithoutSensitiveData } = userObj as any;
+
+    return {
+      ...tokens,
+      user: {
+        ...userWithoutSensitiveData,
+        id: userId,
+      }
+    };
+  }
+
   private async getTokens(userId: string, email: string) {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(

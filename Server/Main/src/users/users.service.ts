@@ -106,4 +106,46 @@ export class UsersService {
   async markAllNotificationsRead(userId: string): Promise<void> {
     await this.notificationModel.updateMany({ userId, read: false }, { read: true });
   }
+
+  /**
+   * Broadcast a notification to all users.
+   */
+  async broadcastNotification(type: string, title: string, message: string): Promise<void> {
+    const users = await this.userModel.find({}, '_id').exec();
+    const notifications = users.map(user => ({
+      userId: user._id.toString(),
+      type: type || 'GENERAL',
+      title,
+      message,
+      timestamp: new Date(),
+    }));
+
+    if (notifications.length > 0) {
+      await this.notificationModel.insertMany(notifications);
+    }
+  }
+
+  /**
+   * Send a notification to specific users.
+   */
+  async sendNotificationsToUsers(userIds: string[], type: string, title: string, message: string): Promise<void> {
+    const notifications = userIds.map(userId => ({
+      userId,
+      type: type || 'GENERAL',
+      title,
+      message,
+      timestamp: new Date(),
+    }));
+
+    if (notifications.length > 0) {
+      await this.notificationModel.insertMany(notifications);
+    }
+  }
+
+  /**
+   * Get the total number of users.
+   */
+  async countAllUsers(): Promise<number> {
+    return this.userModel.countDocuments({}).exec();
+  }
 }

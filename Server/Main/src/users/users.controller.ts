@@ -184,4 +184,41 @@ export class UsersController {
     );
     return { success: true, id: (n as any)._id?.toString() };
   }
+
+  @Post('admin/notifications')
+  @ApiOperation({ summary: '[Admin] Send a notification to specific users or broadcast to all' })
+  @ApiResponse({ status: 201, description: 'Notification sent successfully' })
+  async adminSendNotification(
+    @Req() req: Request,
+    @Body() body: { secret: string; title: string; message: string; type?: string; userIds?: string[] },
+  ) {
+    const expectedSecret = process.env.INTERNAL_SECRET || 'healify-internal-secret';
+    if (body.secret !== expectedSecret) {
+      throw new NotFoundException('Not found'); // Deliberately vague
+    }
+
+    if (body.userIds && Array.isArray(body.userIds) && body.userIds.length > 0) {
+      await this.usersService.sendNotificationsToUsers(body.userIds, body.type ?? 'GENERAL', body.title, body.message);
+    } else {
+      await this.usersService.broadcastNotification(body.type ?? 'GENERAL', body.title, body.message);
+    }
+
+    return { success: true };
+  }
+
+  @Post('admin/users/count')
+  @ApiOperation({ summary: '[Admin] Get total number of users' })
+  @ApiResponse({ status: 200, description: 'Total users count' })
+  async adminGetUsersCount(
+    @Req() req: Request,
+    @Body() body: { secret: string },
+  ) {
+    const expectedSecret = process.env.INTERNAL_SECRET || 'healify-internal-secret';
+    if (body.secret !== expectedSecret) {
+      throw new NotFoundException('Not found'); // Deliberately vague
+    }
+
+    const count = await this.usersService.countAllUsers();
+    return { success: true, count };
+  }
 }

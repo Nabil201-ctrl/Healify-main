@@ -25,11 +25,11 @@ import type { Request } from 'express';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService) { }
 
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Create a new user account',
     description: 'Register a new user with email, password, and personal information'
   })
@@ -148,5 +148,19 @@ export class AuthController {
   refreshTokens(@Req() req: Request) {
     const user = req.user as { sub: string; refreshToken: string };
     return this.authService.refreshTokens(user.sub, user.refreshToken);
+  }
+
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Google OAuth Sign In / Sign Up',
+    description: 'Authenticate user from Google profile data'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User successfully authenticated with Google'
+  })
+  async googleAuth(@Body() body: { email: string; firstName: string; lastName: string; picture?: string }) {
+    return this.authService.googleSignIn(body.email, body.firstName, body.lastName);
   }
 }

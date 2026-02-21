@@ -28,6 +28,17 @@ export const AuthService = {
         return response.data;
     },
 
+    googleLogin: async (email: string, firstName: string, lastName: string, picture?: string) => {
+        const response = await api.post('/auth/google', { email, firstName, lastName, picture });
+        if (response.data.accessToken) {
+            await AsyncStorage.setItem('accessToken', response.data.accessToken);
+        }
+        if (response.data.refreshToken) {
+            await AsyncStorage.setItem('refreshToken', response.data.refreshToken);
+        }
+        return response.data;
+    },
+
     logout: async () => {
         await AsyncStorage.removeItem('accessToken');
         await AsyncStorage.removeItem('refreshToken');
