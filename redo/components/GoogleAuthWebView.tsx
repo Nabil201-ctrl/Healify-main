@@ -11,17 +11,30 @@ interface GoogleAuthWebViewProps {
     onError: (error: string) => void;
 }
 
-// Ensure you replace this with your real Google Client ID in the Google Cloud Console
-// NOTE: Make sure the Redirect URI matches where the app expects to be redirected
-const GOOGLE_CLIENT_ID = '374585175818-4r773ah94ebtskltec8k61s2c8okc3iv.apps.googleusercontent.com';
-const REDIRECT_URI = 'http://localhost:4000/google/callback';
-
 export function GoogleAuthWebView({ visible, onClose, onSuccess, onError }: GoogleAuthWebViewProps) {
     const [loading, setLoading] = useState(true);
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
+    const [authUrl, setAuthUrl] = useState<string | null>(null);
 
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=token&scope=email%20profile`;
+    React.useEffect(() => {
+        if (visible) {
+            // Fetch the URL from the backend so the frontend does not need Google credentials
+            // Make sure the backend provides this endpoint
+            fetch('http://localhost:3000/auth/google/url')
+                .then(res => res.json())
+                .then(data => {
+                    setAuthUrl(data.url);
+                })
+                .catch(err => {
+                    console.error('Failed to get auth URL:', err);
+                    onError('Failed to initiate Google Login. Is backend running?');
+                });
+        } else {
+            setAuthUrl(null);
+            setLoading(true);
+        }
+    }, [visible]);
 
     const handleNavigationStateChange = async (navState: WebViewNavigation) => {
         const url = navState.url;
@@ -31,8 +44,7 @@ export function GoogleAuthWebView({ visible, onClose, onSuccess, onError }: Goog
             const matches = url.match(/access_token=([^&]*)/);
             if (matches && matches[1]) {
                 const accessToken = matches[1];
-                // Instead of fetching here, we pass the token to onSuccess
-                // The backend will perform the 'communicating with google' step
+                // Pass the token to onSuccess which sends it to backend
                 onSuccess({ token: accessToken });
                 onClose();
             } else {
@@ -55,23 +67,30 @@ export function GoogleAuthWebView({ visible, onClose, onSuccess, onError }: Goog
                     <Text style={[styles.title, { color: isDark ? '#fff' : '#000' }]}>Google Sign In</Text>
                     <View style={{ width: 50 }} /> {/* Spacer */}
                 </View>
-                <WebView
-                    source={{ uri: authUrl }}
-                    onNavigationStateChange={handleNavigationStateChange}
-                    onLoadEnd={() => setLoading(false)}
-                    startInLoadingState={true}
-                    renderLoading={() => (
-                        <View style={styles.loader}>
-                            <ActivityIndicator size="large" color="#4f46e5" />
-                        </View>
-                    )}
-                    incognito={true}
-                    userAgent="Mozilla/5.0 (Linux; Android 10; SM-G960F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36" // Bypass Google block on embedded webviews
-                />
+                {authUrl ? (
+                    <WebView
+                        source={{ uri: authUrl }}
+                        onNavigationStateChange={handleNavigationStateChange}
+                        onLoadEnd={() => setLoading(false)}
+                        startInLoadingState={true}
+                        renderLoading={() => (
+                            <View style={styles.loader}>
+                                <ActivityIndicator size="large" color="#4f46e5" />
+                            </View>
+                        )}
+                        incognito={true}
+                        userAgent="Mozilla/5.0 (Linux; Android 10; SM-G960F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36" // Bypass Google block on embedded webviews
+                    />
+                ) : (
+                    <View style={styles.loader}>
+                        <ActivityIndicator size="large" color="#4f46e5" />
+                    </View>
+                )}
             </SafeAreaView>
         </Modal>
     );
 }
+
 
 const styles = StyleSheet.create({
     container: {

@@ -2,6 +2,7 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   HttpCode,
   HttpStatus,
@@ -150,6 +151,19 @@ export class AuthController {
   refreshTokens(@Req() req: Request) {
     const user = req.user as { sub: string; refreshToken: string };
     return this.authService.refreshTokens(user.sub, user.refreshToken);
+  }
+
+  @Get('google/url')
+  @ApiOperation({
+    summary: 'Get Google OAuth URL',
+    description: 'Provide the frontend with the URL to initiate Google Auth',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the Google OAuth URL',
+  })
+  getGoogleAuthUrl() {
+    return this.authService.getGoogleAuthUrl();
   }
 
   @Post('google')
