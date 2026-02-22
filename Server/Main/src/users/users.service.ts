@@ -3,14 +3,18 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User, UserDocument } from './entities/user.entity';
-import { Notification, NotificationDocument } from './entities/notification.entity';
+import {
+  Notification,
+  NotificationDocument,
+} from './entities/notification.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @InjectModel(Notification.name) private notificationModel: Model<NotificationDocument>,
-  ) { }
+    @InjectModel(Notification.name)
+    private notificationModel: Model<NotificationDocument>,
+  ) {}
 
   async create(createUserDto: CreateUserDto) {
     const newUser = new this.userModel(createUserDto);
@@ -29,28 +33,37 @@ export class UsersService {
   }
 
   async updateRefreshToken(userId: string, refreshToken: string | null) {
-    await this.userModel.findByIdAndUpdate(userId, { refreshToken }, { new: true });
+    await this.userModel.findByIdAndUpdate(
+      userId,
+      { refreshToken },
+      { new: true },
+    );
   }
 
-  async update(userId: string, updateUserDto: any): Promise<UserDocument | null> {
-    return this.userModel.findByIdAndUpdate(userId, updateUserDto, { new: true }).exec();
+  async update(
+    userId: string,
+    updateUserDto: any,
+  ): Promise<UserDocument | null> {
+    return this.userModel
+      .findByIdAndUpdate(userId, updateUserDto, { new: true })
+      .exec();
   }
 
   async addPushToken(userId: string, token: string) {
-    await this.userModel.findByIdAndUpdate(
-      userId,
-      { $addToSet: { pushTokens: token } },
-      { new: true, upsert: false },
-    ).exec();
+    await this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $addToSet: { pushTokens: token } },
+        { new: true, upsert: false },
+      )
+      .exec();
     return this.findOneById(userId);
   }
 
   async setLocation(userId: string, location: string) {
-    await this.userModel.findByIdAndUpdate(
-      userId,
-      { location },
-      { new: true, upsert: false },
-    ).exec();
+    await this.userModel
+      .findByIdAndUpdate(userId, { location }, { new: true, upsert: false })
+      .exec();
     return this.findOneById(userId);
   }
 
@@ -90,7 +103,10 @@ export class UsersService {
   /**
    * Mark a single notification as read.
    */
-  async markNotificationRead(notificationId: string, userId: string): Promise<NotificationDocument | null> {
+  async markNotificationRead(
+    notificationId: string,
+    userId: string,
+  ): Promise<NotificationDocument | null> {
     return this.notificationModel
       .findOneAndUpdate(
         { _id: notificationId, userId },
@@ -104,15 +120,22 @@ export class UsersService {
    * Mark all notifications as read for a user.
    */
   async markAllNotificationsRead(userId: string): Promise<void> {
-    await this.notificationModel.updateMany({ userId, read: false }, { read: true });
+    await this.notificationModel.updateMany(
+      { userId, read: false },
+      { read: true },
+    );
   }
 
   /**
    * Broadcast a notification to all users.
    */
-  async broadcastNotification(type: string, title: string, message: string): Promise<void> {
+  async broadcastNotification(
+    type: string,
+    title: string,
+    message: string,
+  ): Promise<void> {
     const users = await this.userModel.find({}, '_id').exec();
-    const notifications = users.map(user => ({
+    const notifications = users.map((user) => ({
       userId: user._id.toString(),
       type: type || 'GENERAL',
       title,
@@ -128,8 +151,13 @@ export class UsersService {
   /**
    * Send a notification to specific users.
    */
-  async sendNotificationsToUsers(userIds: string[], type: string, title: string, message: string): Promise<void> {
-    const notifications = userIds.map(userId => ({
+  async sendNotificationsToUsers(
+    userIds: string[],
+    type: string,
+    title: string,
+    message: string,
+  ): Promise<void> {
+    const notifications = userIds.map((userId) => ({
       userId,
       type: type || 'GENERAL',
       title,

@@ -21,7 +21,8 @@ import { RedisModule } from './redis/redis.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGODB_URI') ||
+        uri:
+          configService.get<string>('MONGODB_URI') ||
           'mongodb://localhost:27017/healify',
         serverSelectionTimeoutMS: 10000, // 10s - faster failure detection
         connectTimeoutMS: 10000, // 10s
@@ -42,4 +43,4 @@ import { RedisModule } from './redis/redis.module';
   controllers: [AppController /*, NotificationController */],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

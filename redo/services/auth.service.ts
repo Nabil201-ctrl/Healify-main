@@ -28,8 +28,8 @@ export const AuthService = {
         return response.data;
     },
 
-    googleLogin: async (email: string, firstName: string, lastName: string, picture?: string) => {
-        const response = await api.post('/auth/google', { email, firstName, lastName, picture });
+    googleLogin: async (token: string) => {
+        const response = await api.post('/auth/google', { token });
         if (response.data.accessToken) {
             await AsyncStorage.setItem('accessToken', response.data.accessToken);
         }

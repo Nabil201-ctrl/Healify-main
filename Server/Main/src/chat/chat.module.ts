@@ -6,4 +6,4 @@ import { ServicesModule } from '../services/services.module';
   imports: [ServicesModule],
   controllers: [ChatController],
 })
-export class ChatModule { }
+export class ChatModule {}

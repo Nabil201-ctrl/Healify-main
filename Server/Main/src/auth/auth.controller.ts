@@ -31,7 +31,8 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create a new user account',
-    description: 'Register a new user with email, password, and personal information'
+    description:
+      'Register a new user with email, password, and personal information',
   })
   @ApiBody({ type: CreateUserDto })
   @ApiResponse({
@@ -66,7 +67,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'User login',
-    description: 'Authenticate user with email and password'
+    description: 'Authenticate user with email and password',
   })
   @ApiBody({ type: LoginDto })
   @ApiResponse({
@@ -99,7 +100,7 @@ export class AuthController {
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({
     summary: 'User logout',
-    description: 'Invalidate refresh token and logout the current user'
+    description: 'Invalidate refresh token and logout the current user',
   })
   @ApiResponse({
     status: 200,
@@ -125,7 +126,8 @@ export class AuthController {
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({
     summary: 'Refresh access token',
-    description: 'Generate new access and refresh tokens using a valid refresh token'
+    description:
+      'Generate new access and refresh tokens using a valid refresh token',
   })
   @ApiResponse({
     status: 200,
@@ -154,13 +156,14 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Google OAuth Sign In / Sign Up',
-    description: 'Authenticate user from Google profile data'
+    description: 'Authenticate user from Google access token',
   })
   @ApiResponse({
     status: 200,
-    description: 'User successfully authenticated with Google'
+    description: 'User successfully authenticated with Google',
   })
-  async googleAuth(@Body() body: { email: string; firstName: string; lastName: string; picture?: string }) {
-    return this.authService.googleSignIn(body.email, body.firstName, body.lastName);
+  async googleAuth(@Body() body: { token: string }) {
+    return this.authService.googleSignIn(body.token);
   }
+
 }

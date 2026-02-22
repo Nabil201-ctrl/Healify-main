@@ -3,7 +3,10 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { User, UserSchema } from './entities/user.entity';
-import { Notification, NotificationSchema } from './entities/notification.entity';
+import {
+  Notification,
+  NotificationSchema,
+} from './entities/notification.entity';
 
 @Module({
   imports: [
@@ -16,4 +19,4 @@ import { Notification, NotificationSchema } from './entities/notification.entity
   providers: [UsersService],
   exports: [UsersService],
 })
-export class UsersModule { }
+export class UsersModule {}

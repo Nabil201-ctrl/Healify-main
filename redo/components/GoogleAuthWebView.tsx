@@ -13,8 +13,8 @@ interface GoogleAuthWebViewProps {
 
 // Ensure you replace this with your real Google Client ID in the Google Cloud Console
 // NOTE: Make sure the Redirect URI matches where the app expects to be redirected
-const GOOGLE_CLIENT_ID = '937213426742-fakeclientid.apps.googleusercontent.com';
-const REDIRECT_URI = 'https://oauth2.googleapis.com/tokencode';
+const GOOGLE_CLIENT_ID = '374585175818-4r773ah94ebtskltec8k61s2c8okc3iv.apps.googleusercontent.com';
+const REDIRECT_URI = 'http://localhost:4000/google/callback';
 
 export function GoogleAuthWebView({ visible, onClose, onSuccess, onError }: GoogleAuthWebViewProps) {
     const [loading, setLoading] = useState(true);
@@ -31,22 +31,14 @@ export function GoogleAuthWebView({ visible, onClose, onSuccess, onError }: Goog
             const matches = url.match(/access_token=([^&]*)/);
             if (matches && matches[1]) {
                 const accessToken = matches[1];
-                try {
-                    // Fetch user info from Google
-                    const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                        headers: {
-                            Authorization: `Bearer ${accessToken}`
-                        }
-                    });
-                    const userInfo = await response.json();
-                    onSuccess(userInfo);
-                } catch (error) {
-                    onError('Failed to fetch user information from Google.');
-                }
+                // Instead of fetching here, we pass the token to onSuccess
+                // The backend will perform the 'communicating with google' step
+                onSuccess({ token: accessToken });
+                onClose();
             } else {
                 onError('Access token missing in URL.');
+                onClose();
             }
-            onClose();
         } else if (url.includes('error=')) {
             onError('Google Login failed or was cancelled.');
             onClose();

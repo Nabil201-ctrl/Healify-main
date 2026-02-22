@@ -17,7 +17,14 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
   private readonly NOTIFICATION_QUEUE = 'notification_queue';
   private readonly SESSION_STATUS_REQUEST_QUEUE = 'chat_session_status_request';
 
-  private pendingRequests = new Map<string, { resolve: (value: any) => void; reject: (reason?: any) => void; timeout: NodeJS.Timeout }>();
+  private pendingRequests = new Map<
+    string,
+    {
+      resolve: (value: any) => void;
+      reject: (reason?: any) => void;
+      timeout: NodeJS.Timeout;
+    }
+  >();
 
   async onModuleInit() {
     await this.connect();
@@ -47,10 +54,16 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
       await this.channel.assertQueue(this.CHAT_QUEUE, { durable: true });
       await this.channel.assertQueue(this.RESPONSE_QUEUE, { durable: true });
       await this.channel.assertQueue(this.HEALTH_QUEUE, { durable: true });
-      await this.channel.assertQueue(this.HEALTH_RESPONSE_QUEUE, { durable: true });
+      await this.channel.assertQueue(this.HEALTH_RESPONSE_QUEUE, {
+        durable: true,
+      });
       await this.channel.assertQueue(this.HEALTH_SYNC_QUEUE, { durable: true });
-      await this.channel.assertQueue(this.NOTIFICATION_QUEUE, { durable: true });
-      await this.channel.assertQueue(this.SESSION_STATUS_REQUEST_QUEUE, { durable: true });
+      await this.channel.assertQueue(this.NOTIFICATION_QUEUE, {
+        durable: true,
+      });
+      await this.channel.assertQueue(this.SESSION_STATUS_REQUEST_QUEUE, {
+        durable: true,
+      });
 
       console.log('RabbitMQ connected and queues asserted');
 
@@ -108,7 +121,9 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
           Buffer.from(JSON.stringify(payload)),
           { persistent: true },
         );
-        console.log(`Health request sent: ${dataType}, userId: ${userId}, correlationId: ${correlationId}`);
+        console.log(
+          `Health request sent: ${dataType}, userId: ${userId}, correlationId: ${correlationId}`,
+        );
       } catch (error) {
         clearTimeout(timeout);
         this.pendingRequests.delete(correlationId);
@@ -160,17 +175,22 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     const replyTo = await this.channel.assertQueue('', { exclusive: true });
 
     return new Promise((resolve, reject) => {
-      this.channel.consume(replyTo.queue, (msg) => {
-        if (msg && msg.properties.correlationId === correlationId) {
-          const content = JSON.parse(msg.content.toString());
-          resolve(content.sessions);
-          this.channel.deleteQueue(replyTo.queue);
-        }
-      }, { noAck: true });
+      this.channel.consume(
+        replyTo.queue,
+        (msg) => {
+          if (msg && msg.properties.correlationId === correlationId) {
+            const content = JSON.parse(msg.content.toString());
+            resolve(content.sessions);
+            this.channel.deleteQueue(replyTo.queue);
+          }
+        },
+        { noAck: true },
+      );
 
-      this.channel.sendToQueue('chat_session_list_request',
+      this.channel.sendToQueue(
+        'chat_session_list_request',
         Buffer.from(JSON.stringify({ userId })),
-        { correlationId, replyTo: replyTo.queue }
+        { correlationId, replyTo: replyTo.queue },
       );
 
       setTimeout(() => resolve([]), 5000);
@@ -184,17 +204,22 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     const replyTo = await this.channel.assertQueue('', { exclusive: true });
 
     return new Promise((resolve, reject) => {
-      this.channel.consume(replyTo.queue, (msg) => {
-        if (msg && msg.properties.correlationId === correlationId) {
-          const content = JSON.parse(msg.content.toString());
-          resolve(content.messages);
-          this.channel.deleteQueue(replyTo.queue);
-        }
-      }, { noAck: true });
+      this.channel.consume(
+        replyTo.queue,
+        (msg) => {
+          if (msg && msg.properties.correlationId === correlationId) {
+            const content = JSON.parse(msg.content.toString());
+            resolve(content.messages);
+            this.channel.deleteQueue(replyTo.queue);
+          }
+        },
+        { noAck: true },
+      );
 
-      this.channel.sendToQueue('chat_session_messages_request',
+      this.channel.sendToQueue(
+        'chat_session_messages_request',
         Buffer.from(JSON.stringify({ sessionId })),
-        { correlationId, replyTo: replyTo.queue }
+        { correlationId, replyTo: replyTo.queue },
       );
 
       setTimeout(() => resolve([]), 5000);
@@ -212,13 +237,17 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     const replyTo = await this.channel.assertQueue('', { exclusive: true });
 
     return new Promise((resolve) => {
-      this.channel.consume(replyTo.queue, (msg) => {
-        if (msg && msg.properties.correlationId === correlationId) {
-          const content = JSON.parse(msg.content.toString());
-          resolve(content.session ?? null);
-          this.channel.deleteQueue(replyTo.queue);
-        }
-      }, { noAck: true });
+      this.channel.consume(
+        replyTo.queue,
+        (msg) => {
+          if (msg && msg.properties.correlationId === correlationId) {
+            const content = JSON.parse(msg.content.toString());
+            resolve(content.session ?? null);
+            this.channel.deleteQueue(replyTo.queue);
+          }
+        },
+        { noAck: true },
+      );
 
       this.channel.sendToQueue(
         this.SESSION_STATUS_REQUEST_QUEUE,
@@ -245,7 +274,13 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async sendNotification(payload: { tokens?: string[]; token?: string; title?: string; message: string; type?: string }) {
+  async sendNotification(payload: {
+    tokens?: string[];
+    token?: string;
+    title?: string;
+    message: string;
+    type?: string;
+  }) {
     if (!this.channel) {
       throw new Error('RabbitMQ channel not initialized');
     }
@@ -253,10 +288,12 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     try {
       this.channel.sendToQueue(
         this.NOTIFICATION_QUEUE,
-        Buffer.from(JSON.stringify({
-          ...payload,
-          timestamp: new Date().toISOString(),
-        })),
+        Buffer.from(
+          JSON.stringify({
+            ...payload,
+            timestamp: new Date().toISOString(),
+          }),
+        ),
         { persistent: true },
       );
       console.log('Notification payload sent to queue:', payload);
@@ -313,7 +350,9 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
                 }
               }
             } else {
-              console.warn(`Received response for unknown correlationId: ${correlationId}`);
+              console.warn(
+                `Received response for unknown correlationId: ${correlationId}`,
+              );
             }
 
             this.channel.ack(msg);

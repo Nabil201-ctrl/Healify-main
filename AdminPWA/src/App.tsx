@@ -1,12 +1,19 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Users, Send, CheckCircle } from 'lucide-react';
+import { Users, Send, CheckCircle, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const API_BASE_URL = 'http://localhost:4000/users';
-const INTERNAL_SECRET = 'healify-internal-secret';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/users';
+const INTERNAL_SECRET = import.meta.env.VITE_INTERNAL_SECRET || 'healify-internal-secret';
+const ADMIN_USERNAME = import.meta.env.VITE_ADMIN_USERNAME || 'admin';
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'secret';
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+
   const [userCount, setUserCount] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [title, setTitle] = useState('');
@@ -15,8 +22,10 @@ function App() {
   const [toast, setToast] = useState<{ show: boolean, msg: string }>({ show: false, msg: '' });
 
   useEffect(() => {
-    fetchUserCount();
-  }, []);
+    if (isAuthenticated) {
+      fetchUserCount();
+    }
+  }, [isAuthenticated]);
 
   const fetchUserCount = async () => {
     try {
@@ -29,6 +38,16 @@ function App() {
       setUserCount(null); // Keep or show error state
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+      setIsAuthenticated(true);
+      setLoginError('');
+    } else {
+      setLoginError('Invalid credentials');
     }
   };
 
@@ -61,8 +80,60 @@ function App() {
     }
   };
 
+  if (!isAuthenticated) {
+    return (
+      <div className="login-container">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-panel"
+          style={{ width: '100%', maxWidth: '400px' }}
+        >
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <Lock size={48} color="rgba(255, 255, 255, 0.9)" style={{ marginBottom: '1rem' }} />
+            <h1 className="heading">Admin Login</h1>
+          </div>
+          <form onSubmit={handleLogin} className="notification-form">
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label htmlFor="username">Username</label>
+              <input
+                id="username"
+                type="text"
+                className="input-field"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            </div>
+            <div style={{ marginBottom: '2rem' }}>
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                className="input-field"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            {loginError && <div style={{ color: '#ff6b6b', marginBottom: '1rem', textAlign: 'center' }}>{loginError}</div>}
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              type="submit"
+              className="btn-primary"
+              style={{ width: '100%' }}
+            >
+              Login
+            </motion.button>
+          </form>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+    <div className="dashboard-grid">
       <AnimatePresence>
         {toast.show && (
           <motion.div

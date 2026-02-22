@@ -51,12 +51,13 @@ export class ChatController {
   constructor(
     private readonly rabbitMQService: RabbitMQService,
     private readonly cacheService: CacheService,
-  ) { }
+  ) {}
 
   @Post('send')
   @ApiOperation({
     summary: 'Send message to AI chat bot',
-    description: 'Send a message to the AI chat microservice for processing. Returns a session ID for tracking.'
+    description:
+      'Send a message to the AI chat microservice for processing. Returns a session ID for tracking.',
   })
   @ApiBody({ type: SendMessageDto })
   @ApiResponse({
@@ -117,7 +118,7 @@ export class ChatController {
   @Get('session/:sessionId')
   @ApiOperation({
     summary: 'Get chat session status',
-    description: 'Retrieve the current status and details of a chat session'
+    description: 'Retrieve the current status and details of a chat session',
   })
   @ApiParam({
     name: 'sessionId',
@@ -158,7 +159,8 @@ export class ChatController {
   async getSessionStatus(@Param('sessionId') sessionId: string) {
     try {
       // Read directly from ChatMicroservice MongoDB via RPC — no Redis
-      const session = await this.rabbitMQService.requestSessionStatus(sessionId);
+      const session =
+        await this.rabbitMQService.requestSessionStatus(sessionId);
 
       if (!session) {
         return {
@@ -189,7 +191,8 @@ export class ChatController {
   @Get('history/:userId')
   @ApiOperation({
     summary: 'Get user chat history',
-    description: 'Retrieve all chat history for a specific user. Users can only access their own history.'
+    description:
+      'Retrieve all chat history for a specific user. Users can only access their own history.',
   })
   @ApiParam({
     name: 'userId',
@@ -214,7 +217,7 @@ export class ChatController {
   })
   @ApiResponse({
     status: 403,
-    description: 'Forbidden - Cannot access another user\'s history',
+    description: "Forbidden - Cannot access another user's history",
     schema: {
       example: {
         success: false,
@@ -250,7 +253,8 @@ export class ChatController {
   @Get('sessions/:userId')
   @ApiOperation({ summary: 'Get user chat sessions' })
   async getChatSessions(@Request() req, @Param('userId') userId: string) {
-    if (req.user.userId !== userId) return { success: false, message: 'Unauthorized' };
+    if (req.user.userId !== userId)
+      return { success: false, message: 'Unauthorized' };
 
     try {
       const sessions = await this.rabbitMQService.requestChatSessions(userId);
@@ -262,11 +266,15 @@ export class ChatController {
 
   @Get('session/:sessionId/messages')
   @ApiOperation({ summary: 'Get messages for a specific session' })
-  async getSessionMessages(@Request() req, @Param('sessionId') sessionId: string) {
+  async getSessionMessages(
+    @Request() req,
+    @Param('sessionId') sessionId: string,
+  ) {
     // Note: In a real app we should verify the session belongs to the user
     // For now we assume the user knows the sessionId implies access or we trust the microservice content
     try {
-      const messages = await this.rabbitMQService.requestSessionMessages(sessionId);
+      const messages =
+        await this.rabbitMQService.requestSessionMessages(sessionId);
       return { success: true, messages };
     } catch (error) {
       return { success: false, error: error.message };

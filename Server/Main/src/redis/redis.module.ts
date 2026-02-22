@@ -8,4 +8,4 @@ import { redisClientFactory } from './redis.provider';
   providers: [redisClientFactory],
   exports: ['UPSTASH_REDIS_CLIENT'],
 })
-export class RedisModule { }
+export class RedisModule {}

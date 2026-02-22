@@ -26,7 +26,7 @@ import { SetLocationDto } from './dto/set-location.dto';
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  constructor(private readonly usersService: UsersService) {}
 
   // ── Profile ──────────────────────────────────────────────────────────────
 
@@ -34,7 +34,10 @@ export class UsersController {
   @Get('me')
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get current user profile' })
-  @ApiResponse({ status: 200, description: 'User profile retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile retrieved successfully',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async getMe(@Req() req: Request) {
@@ -51,10 +54,16 @@ export class UsersController {
   @Patch('me')
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Update current user profile' })
-  @ApiResponse({ status: 200, description: 'User profile updated successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile updated successfully',
+  })
   async updateMe(@Req() req: Request, @Body() updateUserDto: UpdateUserDto) {
     const user = req.user as { userId: string };
-    const updatedUser = await this.usersService.update(user.userId, updateUserDto);
+    const updatedUser = await this.usersService.update(
+      user.userId,
+      updateUserDto,
+    );
     if (!updatedUser) throw new NotFoundException('User not found');
     const userObj = updatedUser.toObject ? updatedUser.toObject() : updatedUser;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -70,7 +79,10 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'Push token registered' })
   async registerPushToken(@Req() req: Request, @Body() body: PushTokenDto) {
     const user = req.user as { userId: string };
-    const updated = await this.usersService.addPushToken(user.userId, body.token);
+    const updated = await this.usersService.addPushToken(
+      user.userId,
+      body.token,
+    );
     return {
       success: true,
       message: 'Push token registered',
@@ -86,8 +98,15 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'Location saved' })
   async setLocation(@Req() req: Request, @Body() body: SetLocationDto) {
     const user = req.user as { userId: string };
-    const updated = await this.usersService.setLocation(user.userId, body.location);
-    return { success: true, message: 'Location updated', location: updated?.location };
+    const updated = await this.usersService.setLocation(
+      user.userId,
+      body.location,
+    );
+    return {
+      success: true,
+      message: 'Location updated',
+      location: updated?.location,
+    };
   }
 
   @Get('locations')
@@ -115,7 +134,10 @@ export class UsersController {
   @Get('notifications')
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get in-app notifications for the current user' })
-  @ApiResponse({ status: 200, description: 'List of notifications, newest first' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of notifications, newest first',
+  })
   async getNotifications(@Req() req: Request) {
     const user = req.user as { userId: string };
     const notifications = await this.usersService.getNotifications(user.userId);
@@ -145,7 +167,10 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'Notification marked as read' })
   async markRead(@Req() req: Request, @Param('id') id: string) {
     const user = req.user as { userId: string };
-    const updated = await this.usersService.markNotificationRead(id, user.userId);
+    const updated = await this.usersService.markNotificationRead(
+      id,
+      user.userId,
+    );
     if (!updated) throw new NotFoundException('Notification not found');
     return { success: true, id };
   }
@@ -166,13 +191,23 @@ export class UsersController {
    * notification in MongoDB. Protected by a shared secret header instead of JWT.
    */
   @Post('notifications/internal')
-  @ApiOperation({ summary: '[Internal] Persist a notification from a microservice' })
+  @ApiOperation({
+    summary: '[Internal] Persist a notification from a microservice',
+  })
   @ApiResponse({ status: 201, description: 'Notification stored' })
   async internalCreateNotification(
     @Req() req: Request,
-    @Body() body: { userId: string; type: string; title: string; message: string; secret: string },
+    @Body()
+    body: {
+      userId: string;
+      type: string;
+      title: string;
+      message: string;
+      secret: string;
+    },
   ) {
-    const expectedSecret = process.env.INTERNAL_SECRET || 'healify-internal-secret';
+    const expectedSecret =
+      process.env.INTERNAL_SECRET || 'healify-internal-secret';
     if (body.secret !== expectedSecret) {
       throw new NotFoundException('Not found'); // Deliberately vague
     }
@@ -186,21 +221,45 @@ export class UsersController {
   }
 
   @Post('admin/notifications')
-  @ApiOperation({ summary: '[Admin] Send a notification to specific users or broadcast to all' })
+  @ApiOperation({
+    summary:
+      '[Admin] Send a notification to specific users or broadcast to all',
+  })
   @ApiResponse({ status: 201, description: 'Notification sent successfully' })
   async adminSendNotification(
     @Req() req: Request,
-    @Body() body: { secret: string; title: string; message: string; type?: string; userIds?: string[] },
+    @Body()
+    body: {
+      secret: string;
+      title: string;
+      message: string;
+      type?: string;
+      userIds?: string[];
+    },
   ) {
-    const expectedSecret = process.env.INTERNAL_SECRET || 'healify-internal-secret';
+    const expectedSecret =
+      process.env.INTERNAL_SECRET || 'healify-internal-secret';
     if (body.secret !== expectedSecret) {
       throw new NotFoundException('Not found'); // Deliberately vague
     }
 
-    if (body.userIds && Array.isArray(body.userIds) && body.userIds.length > 0) {
-      await this.usersService.sendNotificationsToUsers(body.userIds, body.type ?? 'GENERAL', body.title, body.message);
+    if (
+      body.userIds &&
+      Array.isArray(body.userIds) &&
+      body.userIds.length > 0
+    ) {
+      await this.usersService.sendNotificationsToUsers(
+        body.userIds,
+        body.type ?? 'GENERAL',
+        body.title,
+        body.message,
+      );
     } else {
-      await this.usersService.broadcastNotification(body.type ?? 'GENERAL', body.title, body.message);
+      await this.usersService.broadcastNotification(
+        body.type ?? 'GENERAL',
+        body.title,
+        body.message,
+      );
     }
 
     return { success: true };
@@ -213,7 +272,8 @@ export class UsersController {
     @Req() req: Request,
     @Body() body: { secret: string },
   ) {
-    const expectedSecret = process.env.INTERNAL_SECRET || 'healify-internal-secret';
+    const expectedSecret =
+      process.env.INTERNAL_SECRET || 'healify-internal-secret';
     if (body.secret !== expectedSecret) {
       throw new NotFoundException('Not found'); // Deliberately vague
     }

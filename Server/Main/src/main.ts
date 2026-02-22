@@ -11,9 +11,11 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Security headers
-  app.use(helmet({
-    contentSecurityPolicy: false, // Disable CSP for Swagger UI
-  }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: false, // Disable CSP for Swagger UI
+    }),
+  );
 
   // Response compression - reduces payload size by ~70%
   app.use(compression());
@@ -42,7 +44,9 @@ async function bootstrap() {
   // Swagger Configuration
   const config = new DocumentBuilder()
     .setTitle('Healify API')
-    .setDescription('The Healify API documentation - Health & Wellness Platform with AI Chat Integration')
+    .setDescription(
+      'The Healify API documentation - Health & Wellness Platform with AI Chat Integration',
+    )
     .setVersion('1.0')
     .addTag('auth', 'Authentication endpoints')
     .addTag('users', 'User management endpoints')
@@ -78,6 +82,8 @@ async function bootstrap() {
   const port = 4000;
   await app.listen(port);
   console.log(`Application is running on: http://localhost:${port}`);
-  console.log(`Swagger documentation available at: http://localhost:${port}/api/docs`);
+  console.log(
+    `Swagger documentation available at: http://localhost:${port}/api/docs`,
+  );
 }
 bootstrap();

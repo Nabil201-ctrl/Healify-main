@@ -41,17 +41,29 @@ export class User {
   @Prop()
   sleepHours?: number; // avg hrs/night
 
-  @Prop({ type: String, enum: ['Slim', 'Lean', 'Average', 'Athletic', 'Overweight'] })
+  @Prop({
+    type: String,
+    enum: ['Slim', 'Lean', 'Average', 'Athletic', 'Overweight'],
+  })
   bodyType?: string;
 
-  @Prop({ type: String, enum: ['Male', 'Female', 'Non-binary', 'Prefer not to say'] })
+  @Prop({
+    type: String,
+    enum: ['Male', 'Female', 'Non-binary', 'Prefer not to say'],
+  })
   gender?: string;
 
-  @Prop({ type: String, enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'] })
+  @Prop({
+    type: String,
+    enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'],
+  })
   bloodType?: string;
 
   // ── Lifestyle ─────────────────────────────────────────────────────────────
-  @Prop({ type: String, enum: ['Sedentary', 'Lightly Active', 'Moderately Active', 'Very Active'] })
+  @Prop({
+    type: String,
+    enum: ['Sedentary', 'Lightly Active', 'Moderately Active', 'Very Active'],
+  })
   activityLevel?: string;
 
   @Prop({ type: String, enum: ['Active', 'Office', 'Mixed'] })
@@ -70,7 +82,10 @@ export class User {
   alcoholUse?: string;
 
   // ── Personal ──────────────────────────────────────────────────────────────
-  @Prop({ type: String, enum: ['Single', 'Married', 'Divorced', 'Widowed', 'Prefer not to say'] })
+  @Prop({
+    type: String,
+    enum: ['Single', 'Married', 'Divorced', 'Widowed', 'Prefer not to say'],
+  })
   maritalStatus?: string;
 
   @Prop()

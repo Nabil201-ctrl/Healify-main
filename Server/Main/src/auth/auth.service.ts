@@ -10,13 +10,14 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { User } from '../users/entities/user.entity';
+import axios from 'axios';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
-  ) { }
+  ) {}
 
   async signUp(createUserDto: CreateUserDto) {
     try {
@@ -120,7 +121,29 @@ export class AuthService {
     return tokens;
   }
 
-  async googleSignIn(email: string, firstName: string, lastName: string) {
+  async googleSignIn(token: string) {
+    let email: string, firstName: string, lastName: string;
+
+    try {
+      const response = await axios.get(
+        'https://www.googleapis.com/oauth2/v3/userinfo',
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      email = response.data.email;
+      firstName = response.data.given_name || 'Google';
+      lastName = response.data.family_name || 'User';
+
+      if (!email) {
+        throw new Error('No email returned from Google');
+      }
+    } catch (error) {
+      throw new UnauthorizedException(
+        'Failed to authenticate with Google: Invalid or expired token',
+      );
+    }
+
     let user = await this.usersService.findOneByEmail(email);
     if (!user) {
       // Auto-register Google User
@@ -129,24 +152,33 @@ export class AuthService {
       user = await this.usersService.create({
         email,
         firstName,
-        lastName: lastName || '',
+        lastName,
         password: hashedPassword,
-      }) as any;
+      });
     }
 
     const userId = (user as any)._id?.toString() || (user as any).id;
-    const tokens = await this.getTokens(userId, user.email);
+    const tokens = await this.getTokens(userId, user!.email);
     await this.updateRefreshToken(userId, tokens.refreshToken);
 
-    const userObj = typeof (user as any).toObject === 'function' ? (user as any).toObject() : user;
-    const { password: _, refreshToken: __, _id, __v, ...userWithoutSensitiveData } = userObj as any;
+    const userObj =
+      typeof (user as any).toObject === 'function'
+        ? (user as any).toObject()
+        : user;
+    const {
+      password: _,
+      refreshToken: __,
+      _id,
+      __v,
+      ...userWithoutSensitiveData
+    } = userObj;
 
     return {
       ...tokens,
       user: {
         ...userWithoutSensitiveData,
         id: userId,
-      }
+      },
     };
   }
 
