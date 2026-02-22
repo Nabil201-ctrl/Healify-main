@@ -1,11 +1,10 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
 import { authEvents } from './authEvents';
 
-// Use localhost for web/iOS and 10.0.2.2 for Android emulator
-const DEV_URL = Platform.OS === 'android' ? 'http://10.0.2.2:4000' : 'http://localhost:4000';
-export const API_URL = process.env.EXPO_PUBLIC_API_URL || DEV_URL;
+export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://healify-main.vercel.app';
+export const HEALTH_URL = 'https://healify-health.onrender.com';
+export const CHAT_URL = 'https://healify-chat.onrender.com';
 
 const api = axios.create({
     baseURL: API_URL,
@@ -21,9 +20,17 @@ api.interceptors.request.use(
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+
+        // Log all outgoing requests
+        const fullUrl = config.baseURL ? `${config.baseURL}${config.url}` : config.url;
+        console.log(`[API Request] ${config.method?.toUpperCase()} ${fullUrl}`, config.data ? JSON.stringify(config.data).substring(0, 100) + '...' : '');
+
         return config;
     },
-    (error) => Promise.reject(error)
+    (error) => {
+        console.warn('[API Request Error]', error);
+        return Promise.reject(error);
+    }
 );
 
 // ── Response interceptor — handle token expiry ────────────────────────────
@@ -39,11 +46,18 @@ const processQueue = (error: any, token: string | null = null) => {
 };
 
 api.interceptors.response.use(
-    // Successful response — pass through unchanged
-    (response) => response,
+    // Successful response
+    (response) => {
+        const fullUrl = response.config.baseURL ? `${response.config.baseURL}${response.config.url}` : response.config.url;
+        console.log(`[API Response] ${response.status} ${fullUrl}`);
+        return response;
+    },
 
     // Error response
     async (error) => {
+        const fullUrl = error.config?.baseURL ? `${error.config.baseURL}${error.config?.url}` : error.config?.url;
+        console.warn(`[API Error] ${error.response?.status || 'Network Error'} ${fullUrl}`, error.response?.data || error.message);
+
         const originalRequest = error.config;
 
         // Only attempt refresh on 401 and not already retried

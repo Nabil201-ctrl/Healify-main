@@ -43,7 +43,7 @@ export default function RegisterScreen() {
     const handleGoogleSuccess = async (userInfo: any) => {
         try {
             setIsLoading(true);
-            await AuthService.googleLogin(userInfo.email, userInfo.given_name || 'Google', userInfo.family_name || 'User', userInfo.picture);
+            await AuthService.googleLogin(userInfo.token);
             onAuthSuccess();
             router.replace('/(onboarding)/onboarding');
         } catch (error: any) {

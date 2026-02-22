@@ -25,8 +25,8 @@ export class User {
   @Prop()
   lastName?: string;
 
-  @Prop()
-  refreshToken?: string;
+  @Prop({ type: [String], default: [] })
+  refreshTokens?: string[];
 
   // ── Physical ──────────────────────────────────────────────────────────────
   @Prop()

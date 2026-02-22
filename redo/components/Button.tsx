@@ -3,14 +3,17 @@ import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-nat
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 
+import { ViewStyle, StyleProp } from 'react-native';
+
 interface ButtonProps {
     title: string;
     onPress: () => void;
     isLoading?: boolean;
     variant?: 'primary' | 'secondary' | 'outline';
+    style?: StyleProp<ViewStyle>;
 }
 
-export const Button = ({ title, onPress, isLoading, variant = 'primary' }: ButtonProps) => {
+export const Button = ({ title, onPress, isLoading, variant = 'primary', style }: ButtonProps) => {
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
 
@@ -27,7 +30,7 @@ export const Button = ({ title, onPress, isLoading, variant = 'primary' }: Butto
 
     return (
         <TouchableOpacity
-            style={[styles.button, { backgroundColor: getBackgroundColor(), borderColor: colors.tint, borderWidth: variant === 'outline' ? 1 : 0 }]}
+            style={[styles.button, { backgroundColor: getBackgroundColor(), borderColor: colors.tint, borderWidth: variant === 'outline' ? 1 : 0 }, style]}
             onPress={onPress}
             disabled={isLoading}
         >

@@ -38,7 +38,7 @@ export class AuthService {
       await this.updateRefreshToken(user.id, tokens.refreshToken);
 
       // Return tokens and user data (excluding sensitive fields)
-      const { password, refreshToken, ...userWithoutSensitiveData } = user;
+      const { password, refreshTokens, ...userWithoutSensitiveData } = user as any;
       return {
         ...tokens,
         user: userWithoutSensitiveData,
@@ -81,7 +81,7 @@ export class AuthService {
       const userObj = user.toObject ? user.toObject() : user;
       const {
         password: _,
-        refreshToken: __,
+        refreshTokens: __,
         _id,
         __v,
         ...userWithoutSensitiveData
@@ -109,15 +109,26 @@ export class AuthService {
 
   async refreshTokens(userId: string, refreshToken: string) {
     const user = await this.usersService.findOneById(userId);
-    if (!user || !user.refreshToken) {
+    if (!user || !user.refreshTokens || user.refreshTokens.length === 0) {
       throw new ForbiddenException('Access Denied');
     }
-    const isMatch = await bcrypt.compare(refreshToken, user.refreshToken);
+
+    let isMatch = false;
+    let oldHashedToken = null;
+    for (const rt of user.refreshTokens) {
+      if (await bcrypt.compare(refreshToken, rt)) {
+        isMatch = true;
+        oldHashedToken = rt;
+        break;
+      }
+    }
+
     if (!isMatch) {
       throw new ForbiddenException('Access Denied');
     }
     const tokens = await this.getTokens(user.id, user.email);
-    await this.updateRefreshToken(user.id, tokens.refreshToken);
+    const hashedNewToken = await bcrypt.hash(tokens.refreshToken, 10);
+    await this.usersService.replaceRefreshToken(user.id, oldHashedToken, hashedNewToken);
     return tokens;
   }
 
@@ -174,11 +185,11 @@ export class AuthService {
         : user;
     const {
       password: _,
-      refreshToken: __,
+      refreshTokens: __,
       _id,
       __v,
       ...userWithoutSensitiveData
-    } = userObj;
+    } = userObj as any;
 
     return {
       ...tokens,

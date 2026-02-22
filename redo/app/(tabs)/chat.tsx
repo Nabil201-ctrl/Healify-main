@@ -144,7 +144,7 @@ export default function ChatScreen() {
                 throw new Error('Server returned success: false');
             }
         } catch (error: any) {
-            console.error('[Chat] Send failed:', error?.message);
+            console.warn('[Chat] Send failed:', error?.message);
             isSendingRef.current = false;
             setIsTyping(false);
             setMessages(prev => [

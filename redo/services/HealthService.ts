@@ -54,7 +54,7 @@ export const HealthService = {
             const response = await api.get('/health/activity');
             return response.data;
         } catch (error) {
-            console.error('Error fetching activity data:', error);
+            console.warn('Error fetching activity data:', error);
             throw error;
         }
     },
@@ -67,7 +67,7 @@ export const HealthService = {
             const response = await api.get('/health/heart-rate');
             return response.data;
         } catch (error) {
-            console.error('Error fetching heart rate data:', error);
+            console.warn('Error fetching heart rate data:', error);
             throw error;
         }
     },
@@ -80,7 +80,7 @@ export const HealthService = {
             const response = await api.get('/health/sleep');
             return response.data;
         } catch (error) {
-            console.error('Error fetching sleep data:', error);
+            console.warn('Error fetching sleep data:', error);
             throw error;
         }
     },
@@ -93,7 +93,7 @@ export const HealthService = {
             const response = await api.get('/health/quick-stats');
             return response.data;
         } catch (error) {
-            console.error('Error fetching quick stats:', error);
+            console.warn('Error fetching quick stats:', error);
             throw error;
         }
     },
@@ -106,7 +106,7 @@ export const HealthService = {
             const response = await api.get('/health/insights');
             return response.data.insights || [];
         } catch (error) {
-            console.error('Error fetching insights:', error);
+            console.warn('Error fetching insights:', error);
             throw error;
         }
     },
@@ -119,7 +119,7 @@ export const HealthService = {
             const response = await api.post('/health/sync', data);
             return response.data;
         } catch (error) {
-            console.error('Error syncing health data:', error);
+            console.warn('Error syncing health data:', error);
             throw error;
         }
     },
@@ -132,7 +132,7 @@ export const HealthService = {
             const response = await api.post('/health/google-fit/sync', { accessToken });
             return response.data;
         } catch (error) {
-            console.error('Error syncing Google Fit data:', error);
+            console.warn('Error syncing Google Fit data:', error);
             throw error;
         }
     }

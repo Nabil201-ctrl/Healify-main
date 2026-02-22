@@ -59,7 +59,7 @@ export const UserService = {
             const response = await api.get('/users/me');
             return response.data;
         } catch (error) {
-            console.error('Error fetching user profile:', error);
+            console.warn('Error fetching user profile:', error);
             throw error;
         }
     },
@@ -104,7 +104,7 @@ export const UserService = {
             const response = await api.patch('/users/me', patchData);
             return response.data;
         } catch (error: any) {
-            console.error('Error updating user profile:', error?.response?.data || error.message); Alert.alert('Detailed Error', JSON.stringify(error?.response?.data || error.message));
+            console.warn('Error updating user profile:', error?.response?.data || error.message); Alert.alert('Detailed Error', JSON.stringify(error?.response?.data || error.message));
             throw error;
         }
     },
@@ -117,7 +117,7 @@ export const UserService = {
             const response = await api.post('/users/location', { location });
             return response.data;
         } catch (error) {
-            console.error('Error setting location:', error);
+            console.warn('Error setting location:', error);
             throw error;
         }
     }

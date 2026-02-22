@@ -14,7 +14,7 @@ export class UsersService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Notification.name)
     private notificationModel: Model<NotificationDocument>,
-  ) {}
+  ) { }
 
   async create(createUserDto: CreateUserDto) {
     const newUser = new this.userModel(createUserDto);
@@ -33,10 +33,36 @@ export class UsersService {
   }
 
   async updateRefreshToken(userId: string, refreshToken: string | null) {
-    await this.userModel.findByIdAndUpdate(
-      userId,
-      { refreshToken },
-      { new: true },
+    if (refreshToken === null) {
+      await this.userModel.findByIdAndUpdate(
+        userId,
+        { refreshTokens: [] },
+        { new: true },
+      );
+    } else {
+      await this.userModel.findByIdAndUpdate(
+        userId,
+        {
+          $push: {
+            refreshTokens: {
+              $each: [refreshToken],
+              $slice: -5,
+            },
+          },
+        },
+        { new: true },
+      );
+    }
+  }
+
+  async replaceRefreshToken(
+    userId: string,
+    oldRefreshToken: string,
+    newRefreshToken: string,
+  ) {
+    await this.userModel.updateOne(
+      { _id: userId, refreshTokens: oldRefreshToken },
+      { $set: { 'refreshTokens.$': newRefreshToken } },
     );
   }
 

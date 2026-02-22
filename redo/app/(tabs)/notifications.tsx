@@ -84,7 +84,7 @@ export default function NotificationsScreen() {
             setNotifications(mapped);
             setUnreadCount(res.data?.unreadCount ?? mapped.filter(n => !n.read).length);
         } catch (e: any) {
-            console.error('[Notifications] Failed to fetch:', e?.message);
+            console.warn('[Notifications] Failed to fetch:', e?.message);
             setError('Could not load notifications. Pull down to retry.');
         } finally {
             setLoading(false);

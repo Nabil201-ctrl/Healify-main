@@ -26,7 +26,7 @@ import { SetLocationDto } from './dto/set-location.dto';
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   // ── Profile ──────────────────────────────────────────────────────────────
 
@@ -46,7 +46,7 @@ export class UsersController {
     if (!currentUser) throw new NotFoundException('User not found');
     const userObj = currentUser.toObject ? currentUser.toObject() : currentUser;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, refreshToken, _id, __v, ...result } = userObj as any;
+    const { password, refreshTokens, _id, __v, ...result } = userObj as any;
     return { ...result, id: _id.toString() };
   }
 
@@ -67,7 +67,7 @@ export class UsersController {
     if (!updatedUser) throw new NotFoundException('User not found');
     const userObj = updatedUser.toObject ? updatedUser.toObject() : updatedUser;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, refreshToken, _id, __v, ...result } = userObj as any;
+    const { password, refreshTokens, _id, __v, ...result } = userObj as any;
     return { ...result, id: _id.toString() };
   }
 

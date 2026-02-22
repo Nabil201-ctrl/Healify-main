@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Modal, View, StyleSheet, TouchableOpacity, Text, SafeAreaView, ActivityIndicator } from 'react-native';
 import { WebView, WebViewNavigation } from 'react-native-webview';
-import Colors from '@/constants/Colors';
 import { useColorScheme } from './useColorScheme';
 
 interface GoogleAuthWebViewProps {
@@ -21,20 +20,20 @@ export function GoogleAuthWebView({ visible, onClose, onSuccess, onError }: Goog
         if (visible) {
             // Fetch the URL from the backend so the frontend does not need Google credentials
             // Make sure the backend provides this endpoint
-            fetch('http://localhost:3000/auth/google/url')
+            fetch('https://healify-main.vercel.app/auth/google/url')
                 .then(res => res.json())
                 .then(data => {
                     setAuthUrl(data.url);
                 })
                 .catch(err => {
-                    console.error('Failed to get auth URL:', err);
+                    console.warn('Failed to get auth URL:', err);
                     onError('Failed to initiate Google Login. Is backend running?');
                 });
         } else {
             setAuthUrl(null);
             setLoading(true);
         }
-    }, [visible]);
+    }, [visible, onError]);
 
     const handleNavigationStateChange = async (navState: WebViewNavigation) => {
         const url = navState.url;
@@ -65,7 +64,7 @@ export function GoogleAuthWebView({ visible, onClose, onSuccess, onError }: Goog
                         <Text style={styles.closeText}>Cancel</Text>
                     </TouchableOpacity>
                     <Text style={[styles.title, { color: isDark ? '#fff' : '#000' }]}>Google Sign In</Text>
-                    <View style={{ width: 50 }} /> {/* Spacer */}
+                    <View style={{ width: 50 }} />
                 </View>
                 {authUrl ? (
                     <WebView
