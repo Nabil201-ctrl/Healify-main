@@ -125,7 +125,7 @@ async function startServer() {
         await EstablishConnection();
         await consumeNotifications();
 
-        app.listen(PORT, () => {
+        app.listen(PORT, '0.0.0.0', () => {
             console.log(`[Notification] Microservice running on port ${PORT}`);
             console.log(`[Notification] Persisting to: ${MAIN_API_URL}/users/notifications/internal`);
         });
