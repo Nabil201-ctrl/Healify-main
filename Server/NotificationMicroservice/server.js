@@ -13,7 +13,7 @@ const app = express();
 const PORT = process.env.PORT || 3003;
 
 // The Main NestJS server base URL — used to persist notifications
-const MAIN_API_URL = process.env.MAIN_API_URL || 'https://healify-main.vercel.app';
+const MAIN_API_URL = process.env.MAIN_API_URL || 'https://healify-main.onrender.com';
 const INTERNAL_SECRET = process.env.INTERNAL_SECRET || 'healify-internal-secret';
 
 app.use(cors());

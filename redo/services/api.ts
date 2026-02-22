@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authEvents } from './authEvents';
 
-export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://healify-main.vercel.app';
+export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://healify-main.onrender.com';
 export const HEALTH_URL = 'https://healify-health.onrender.com';
 export const CHAT_URL = 'https://healify-chat.onrender.com';
 

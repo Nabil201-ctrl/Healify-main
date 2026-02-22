@@ -20,7 +20,7 @@ export function GoogleAuthWebView({ visible, onClose, onSuccess, onError }: Goog
         if (visible) {
             // Fetch the URL from the backend so the frontend does not need Google credentials
             // Make sure the backend provides this endpoint
-            fetch('https://healify-main.vercel.app/auth/google/url')
+            fetch('https://healify-main.onrender.com/auth/google/url')
                 .then(res => res.json())
                 .then(data => {
                     setAuthUrl(data.url);

@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Users, Send, CheckCircle, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://healify-main.vercel.app/users';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://healify-main.onrender.com/users';
 const INTERNAL_SECRET = import.meta.env.VITE_INTERNAL_SECRET || 'healify-internal-secret';
 const ADMIN_USERNAME = import.meta.env.VITE_ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'secret';

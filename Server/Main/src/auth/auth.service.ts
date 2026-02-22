@@ -114,7 +114,7 @@ export class AuthService {
     }
 
     let isMatch = false;
-    let oldHashedToken = null;
+    let oldHashedToken: string | null = null;
     for (const rt of user.refreshTokens) {
       if (await bcrypt.compare(refreshToken, rt)) {
         isMatch = true;
@@ -123,7 +123,7 @@ export class AuthService {
       }
     }
 
-    if (!isMatch) {
+    if (!isMatch || !oldHashedToken) {
       throw new ForbiddenException('Access Denied');
     }
     const tokens = await this.getTokens(user.id, user.email);
