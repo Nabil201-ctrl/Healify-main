@@ -51,6 +51,9 @@ async function bootstrap() {
     .addTag('auth', 'Authentication endpoints')
     .addTag('users', 'User management endpoints')
     .addTag('chat', 'AI Chat endpoints')
+    .addTag('doctor', 'Doctor review & messaging endpoints')
+    .addTag('health', 'Health data endpoints')
+    .addTag('notification', 'Notification endpoints')
     .addBearerAuth(
       {
         type: 'http',

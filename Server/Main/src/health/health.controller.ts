@@ -8,7 +8,7 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { RabbitMQService } from '../services/rabbitmq.service';
+import { HealthProcessorService } from './services/health-processor.service';
 import { CacheService } from '../services/cache.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
@@ -22,9 +22,9 @@ import {
 @Controller('health')
 export class HealthController {
   constructor(
-    private readonly rabbitMQService: RabbitMQService,
+    private readonly healthProcessorService: HealthProcessorService,
     private readonly cacheService: CacheService,
-  ) {}
+  ) { }
 
   @Get()
   @ApiOperation({ summary: 'Health check endpoint' })
@@ -32,7 +32,7 @@ export class HealthController {
   getHealth() {
     return {
       status: 'ok',
-      service: 'healify-main',
+      service: 'healify-monolith',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
     };
@@ -41,27 +41,18 @@ export class HealthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @Get('activity')
-  @ApiOperation({ summary: 'Get user activity data with caching' })
-  @ApiResponse({
-    status: 200,
-    description: 'Activity data retrieved successfully',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getActivity(@Request() req) {
+  @ApiOperation({ summary: 'Get user activity data' })
+  @ApiResponse({ status: 200, description: 'Activity data retrieved' })
+  async getActivity(@Request() req: any) {
     const userId = req.user.userId;
 
     try {
       const cached = await this.cacheService.getHealthData(userId, 'activity');
       if (cached) {
-        console.log(`[Health] Cache HIT for activity data, userId: ${userId}`);
         return { ...cached, fromCache: true };
       }
 
-      console.log(`[Health] Cache MISS for activity data, userId: ${userId}`);
-      const data = await this.rabbitMQService.fetchHealthData(
-        'activity',
-        userId,
-      );
+      const data = await this.healthProcessorService.buildActivityData(userId);
       await this.cacheService.cacheHealthData(userId, 'activity', data, 300);
       return { ...data, fromCache: false };
     } catch (error) {
@@ -76,13 +67,9 @@ export class HealthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @Get('heart-rate')
-  @ApiOperation({ summary: 'Get user heart rate data with caching' })
-  @ApiResponse({
-    status: 200,
-    description: 'Heart rate data retrieved successfully',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getHeartRate(@Request() req) {
+  @ApiOperation({ summary: 'Get user heart rate data' })
+  @ApiResponse({ status: 200, description: 'Heart rate data retrieved' })
+  async getHeartRate(@Request() req: any) {
     const userId = req.user.userId;
 
     try {
@@ -91,17 +78,11 @@ export class HealthController {
         'heart-rate',
       );
       if (cached) {
-        console.log(
-          `[Health] Cache HIT for heart-rate data, userId: ${userId}`,
-        );
         return { ...cached, fromCache: true };
       }
 
-      console.log(`[Health] Cache MISS for heart-rate data, userId: ${userId}`);
-      const data = await this.rabbitMQService.fetchHealthData(
-        'heart-rate',
-        userId,
-      );
+      const data =
+        await this.healthProcessorService.buildHeartRateData(userId);
       await this.cacheService.cacheHealthData(userId, 'heart-rate', data, 300);
       return { ...data, fromCache: false };
     } catch (error) {
@@ -116,24 +97,18 @@ export class HealthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @Get('sleep')
-  @ApiOperation({ summary: 'Get user sleep data with caching' })
-  @ApiResponse({
-    status: 200,
-    description: 'Sleep data retrieved successfully',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getSleep(@Request() req) {
+  @ApiOperation({ summary: 'Get user sleep data' })
+  @ApiResponse({ status: 200, description: 'Sleep data retrieved' })
+  async getSleep(@Request() req: any) {
     const userId = req.user.userId;
 
     try {
       const cached = await this.cacheService.getHealthData(userId, 'sleep');
       if (cached) {
-        console.log(`[Health] Cache HIT for sleep data, userId: ${userId}`);
         return { ...cached, fromCache: true };
       }
 
-      console.log(`[Health] Cache MISS for sleep data, userId: ${userId}`);
-      const data = await this.rabbitMQService.fetchHealthData('sleep', userId);
+      const data = await this.healthProcessorService.buildSleepData(userId);
       await this.cacheService.cacheHealthData(userId, 'sleep', data, 300);
       return { ...data, fromCache: false };
     } catch (error) {
@@ -148,12 +123,9 @@ export class HealthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @Get('quick-stats')
-  @ApiOperation({ summary: 'Get user quick stats (distance, floors, etc.)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Quick stats retrieved successfully',
-  })
-  async getQuickStats(@Request() req) {
+  @ApiOperation({ summary: 'Get user quick stats' })
+  @ApiResponse({ status: 200, description: 'Quick stats retrieved' })
+  async getQuickStats(@Request() req: any) {
     const userId = req.user.userId;
 
     try {
@@ -165,10 +137,8 @@ export class HealthController {
         return { ...cached, fromCache: true };
       }
 
-      const data = await this.rabbitMQService.fetchHealthData(
-        'quick-stats',
-        userId,
-      );
+      const data =
+        await this.healthProcessorService.buildQuickStats(userId);
       await this.cacheService.cacheHealthData(userId, 'quick-stats', data, 300);
       return { ...data, fromCache: false };
     } catch (error) {
@@ -184,8 +154,8 @@ export class HealthController {
   @ApiBearerAuth('JWT-auth')
   @Get('insights')
   @ApiOperation({ summary: 'Get user health insights' })
-  @ApiResponse({ status: 200, description: 'Insights retrieved successfully' })
-  async getInsights(@Request() req) {
+  @ApiResponse({ status: 200, description: 'Insights retrieved' })
+  async getInsights(@Request() req: any) {
     const userId = req.user.userId;
 
     try {
@@ -194,10 +164,8 @@ export class HealthController {
         return { insights: cached, fromCache: true };
       }
 
-      const data = await this.rabbitMQService.fetchHealthData(
-        'insights',
-        userId,
-      );
+      const data =
+        await this.healthProcessorService.buildInsights(userId);
       await this.cacheService.cacheHealthData(userId, 'insights', data, 300);
       return { insights: data, fromCache: false };
     } catch (error) {
@@ -211,14 +179,13 @@ export class HealthController {
 
   @Post('sync')
   @ApiOperation({ summary: 'Sync health data from mobile device' })
-  @ApiResponse({ status: 200, description: 'Health data synced successfully' })
+  @ApiResponse({ status: 200, description: 'Health data synced' })
   async syncHealthData(@Body() data: any) {
     console.log('[Health] Received health sync data:', data);
 
     try {
-      await this.rabbitMQService.sendHealthSync(data);
+      await this.healthProcessorService.analyzeAndStore(data);
 
-      // Invalidate cache on sync to ensure fresh data
       if (data.userId) {
         await this.cacheService.invalidateHealthCache(data.userId);
       }
@@ -239,10 +206,7 @@ export class HealthController {
 
   @Post('google-fit/connect')
   @ApiOperation({ summary: 'Log Google Fit connection status from mobile app' })
-  @ApiResponse({
-    status: 200,
-    description: 'Connection status logged successfully',
-  })
+  @ApiResponse({ status: 200, description: 'Connection status logged' })
   async logGoogleFitConnection(
     @Body() data: { userId?: string; platform: string; status: string },
   ) {
@@ -251,7 +215,6 @@ export class HealthController {
     console.log(`[Health/GoogleFit] User ID: ${data.userId || 'anonymous'}`);
     console.log(`[Health/GoogleFit] Platform: ${data.platform}`);
     console.log(`[Health/GoogleFit] Status: ${data.status}`);
-    console.log(`[Health/GoogleFit] Timestamp: ${new Date().toISOString()}`);
     console.log('========================================');
 
     return {
@@ -264,12 +227,12 @@ export class HealthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @Post('google-fit/sync')
-  @ApiOperation({
-    summary:
-      'Trigger a server-side sync with Google Fit using an OAuth access token',
-  })
+  @ApiOperation({ summary: 'Trigger a server-side sync with Google Fit' })
   @ApiResponse({ status: 200, description: 'Google Fit sync initiated' })
-  async syncGoogleFit(@Request() req, @Body() data: { accessToken: string }) {
+  async syncGoogleFit(
+    @Request() req: any,
+    @Body() data: { accessToken: string },
+  ) {
     if (!data.accessToken) {
       throw new HttpException(
         'accessToken is required',
@@ -280,24 +243,22 @@ export class HealthController {
     console.log(`[Health] Initiating Google Fit sync for user: ${userId}`);
 
     try {
-      await this.rabbitMQService.sendHealthSync({
-        type: 'GOOGLE_FIT_SYNC',
+      await this.healthProcessorService.processGoogleFitSync(
         userId,
-        accessToken: data.accessToken,
-      });
+        data.accessToken,
+      );
 
-      // Optionally invalidate cache so next fetch gets fresh data
       await this.cacheService.invalidateHealthCache(userId);
 
       return {
         success: true,
-        message: 'Google Fit data sync initiated',
+        message: 'Google Fit data sync completed',
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      console.error('[Health] Failed to initiate Google Fit sync:', error);
+      console.error('[Health] Failed to sync Google Fit:', error);
       throw new HttpException(
-        'Failed to initiate Google Fit sync',
+        'Failed to sync Google Fit data',
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }

@@ -1,4 +1,3 @@
-// backend/src/app.module.ts
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -9,8 +8,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { HealthModule } from './health/health.module';
 import { RedisModule } from './redis/redis.module';
-// import { NotificationModule } from './notification/notification.module';
-// import { NotificationController } from './notification/notification.controller';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -24,23 +22,23 @@ import { RedisModule } from './redis/redis.module';
         uri:
           configService.get<string>('MONGODB_URI') ||
           'mongodb://localhost:27017/healify',
-        serverSelectionTimeoutMS: 10000, // 10s - faster failure detection
-        connectTimeoutMS: 10000, // 10s
-        socketTimeoutMS: 45000, // 45s for long queries
-        maxPoolSize: 50, // Connection pooling for scalability
-        minPoolSize: 10, // Keep connections warm
-        retryWrites: true, // Auto-retry failed writes
-        retryReads: true, // Auto-retry failed reads
+        serverSelectionTimeoutMS: 10000,
+        connectTimeoutMS: 10000,
+        socketTimeoutMS: 45000,
+        maxPoolSize: 50,
+        minPoolSize: 10,
+        retryWrites: true,
+        retryReads: true,
       }),
     }),
     AuthModule,
     UsersModule,
     ChatModule,
     RedisModule,
-    // NotifcationModule,
     HealthModule,
+    NotificationModule,
   ],
-  controllers: [AppController /*, NotificationController */],
+  controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

@@ -35,71 +35,10 @@ export default function ChatScreen() {
     // Guard: prevents calling sendMessage while already sending
     const isSendingRef = useRef(false);
 
-    // Cleanup ref for the poll interval so we can cancel it on unmount / new message
-    const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
     const flatListRef = useRef<FlatList>(null);
 
-    // ── Poll for AI response ──────────────────────────────────────────────────
-
-    const startPolling = useCallback((sessionId: string) => {
-        // Cancel any pre-existing poll
-        if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
-        }
-
-        setIsTyping(true);
-        let polls = 0;
-        const MAX_POLLS = 30; // 30s timeout
-
-        pollIntervalRef.current = setInterval(async () => {
-            polls++;
-            try {
-                const res = await api.get(`/chat/session/${sessionId}`);
-                const session = res.data?.session;
-
-                if (session?.status === 'completed' && session?.response) {
-                    clearInterval(pollIntervalRef.current!);
-                    pollIntervalRef.current = null;
-                    setIsTyping(false);
-                    isSendingRef.current = false;
-
-                    setMessages(prev => [
-                        ...prev,
-                        {
-                            id: `ai-${Date.now()}`,
-                            author: 'ai',
-                            text: session.response,
-                            timestamp: Date.now(),
-                        },
-                    ]);
-                    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-                }
-            } catch {
-                // silent — keep polling
-            }
-
-            if (polls >= MAX_POLLS) {
-                clearInterval(pollIntervalRef.current!);
-                pollIntervalRef.current = null;
-                setIsTyping(false);
-                isSendingRef.current = false;
-
-                setMessages(prev => [
-                    ...prev,
-                    {
-                        id: `err-${Date.now()}`,
-                        author: 'ai',
-                        text: 'Sorry, the response took too long. Please try again.',
-                        timestamp: Date.now(),
-                    },
-                ]);
-            }
-        }, 1000);
-    }, []);
-
     // ── Send a message ────────────────────────────────────────────────────────
+    // The monolith now returns the AI response synchronously — no polling needed.
 
     const sendMessage = useCallback(async () => {
         const text = input.trim();
@@ -119,10 +58,12 @@ export default function ChatScreen() {
         setMessages(prev => [...prev, userMsg]);
         setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
+        // Show typing indicator while waiting for AI
+        setIsTyping(true);
+
         try {
             const res = await api.post('/chat/send', {
                 message: text,
-                // Reuse existing session or leave undefined to start new one
                 sessionId: sessionIdRef.current ?? undefined,
             });
 
@@ -134,19 +75,24 @@ export default function ChatScreen() {
                     sessionIdRef.current = data.sessionId;
                 }
 
-                const sid = data.sessionId ?? sessionIdRef.current;
-                if (sid) {
-                    startPolling(sid);
-                } else {
-                    isSendingRef.current = false;
-                }
+                // The monolith returns the AI response directly in data.response
+                const aiText = data.response || data.message || 'No response received.';
+
+                setMessages(prev => [
+                    ...prev,
+                    {
+                        id: `ai-${Date.now()}`,
+                        author: 'ai',
+                        text: aiText,
+                        timestamp: Date.now(),
+                    },
+                ]);
+                setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
             } else {
-                throw new Error('Server returned success: false');
+                throw new Error(data?.message || 'Server returned success: false');
             }
         } catch (error: any) {
             console.warn('[Chat] Send failed:', error?.message);
-            isSendingRef.current = false;
-            setIsTyping(false);
             setMessages(prev => [
                 ...prev,
                 {
@@ -156,16 +102,15 @@ export default function ChatScreen() {
                     timestamp: Date.now(),
                 },
             ]);
+        } finally {
+            setIsTyping(false);
+            isSendingRef.current = false;
         }
-    }, [input, startPolling]);
+    }, [input]);
 
     // ── New conversation ──────────────────────────────────────────────────────
 
     const startNewChat = useCallback(() => {
-        if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
-        }
         isSendingRef.current = false;
         sessionIdRef.current = null;
         setMessages([]);
