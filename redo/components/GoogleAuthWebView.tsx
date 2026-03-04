@@ -20,15 +20,17 @@ export function GoogleAuthWebView({ visible, onClose, onSuccess, onError }: Goog
         if (visible) {
             // Fetch the URL from the backend so the frontend does not need Google credentials
             // Make sure the backend provides this endpoint
-            fetch('https://healify-main.onrender.com/auth/google/url')
-                .then(res => res.json())
-                .then(data => {
-                    setAuthUrl(data.url);
-                })
-                .catch(err => {
-                    console.warn('Failed to get auth URL:', err);
-                    onError('Failed to initiate Google Login. Is backend running?');
-                });
+            import('../services/api').then(({ API_URL }) => {
+                fetch(`${API_URL}/auth/google/url`)
+                    .then(res => res.json())
+                    .then(data => {
+                        setAuthUrl(data.url);
+                    })
+                    .catch(err => {
+                        console.warn('Failed to get auth URL:', err);
+                        onError('Failed to initiate Google Login. Is backend running?');
+                    });
+            });
         } else {
             setAuthUrl(null);
             setLoading(true);

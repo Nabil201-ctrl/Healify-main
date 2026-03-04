@@ -36,6 +36,6 @@ import { UsersModule } from '../users/users.module';
   ],
   controllers: [ChatController, DoctorController],
   providers: [ChatProcessorService, AiProviderService, DoctorService],
-  exports: [ChatProcessorService],
+  exports: [ChatProcessorService, DoctorService],
 })
 export class ChatModule { }

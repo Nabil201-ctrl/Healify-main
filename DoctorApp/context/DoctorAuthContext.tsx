@@ -1,9 +1,9 @@
-import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
-import { doctorLogin, doctorLogout, getDoctorInfo, registerPushToken } from '../services/DoctorAuthService';
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
-import Constants from 'expo-constants';
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import { doctorLogin, doctorLogout, doctorRegister, getDoctorInfo, registerPushToken } from '../services/DoctorAuthService';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type Doctor = {
     doctorId: string;
@@ -17,31 +17,60 @@ type AuthContextType = {
     doctor: Doctor | null;
     isLoading: boolean;
     login: (email: string, pass: string) => Promise<void>;
+    register: (data: {
+        email: string;
+        password: string;
+        firstName: string;
+        lastName: string;
+        specialization?: string;
+        licenseNumber: string;
+    }) => Promise<void>;
     logout: () => Promise<void>;
 };
+
+// ─── Context ──────────────────────────────────────────────────────────────────
 
 const AuthContext = createContext<AuthContextType>({
     doctor: null,
     isLoading: true,
     login: async () => { },
+    register: async () => { },
     logout: async () => { },
 });
 
 export const useAuth = () => useContext(AuthContext);
 
-async function registerForPushNotificationsAsync() {
-    let token;
+// ─── Push notification helper (Expo Go safe) ──────────────────────────────────
+// expo-notifications remote push was removed from Expo Go in SDK 53.
+// We gracefully skip registration when running in Expo Go.
 
-    if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('default', {
-            name: 'default',
-            importance: Notifications.AndroidImportance.MAX,
-            vibrationPattern: [0, 250, 250, 250],
-            lightColor: '#FF231F7C',
-        });
+async function tryRegisterForPushNotifications(): Promise<string | undefined> {
+    // Skip entirely in Expo Go — only works in a dev build or production
+    const isExpoGo = Constants.appOwnership === 'expo';
+    if (isExpoGo) {
+        console.log('[PushNotif] Skipping — not available in Expo Go. Use a dev build.');
+        return undefined;
     }
 
-    if (Device.isDevice) {
+    try {
+        // Dynamically import so the module doesn't crash the bundle in Expo Go
+        const Notifications = await import('expo-notifications');
+        const Device = await import('expo-device');
+
+        if (Platform.OS === 'android') {
+            await Notifications.setNotificationChannelAsync('default', {
+                name: 'default',
+                importance: Notifications.AndroidImportance.MAX,
+                vibrationPattern: [0, 250, 250, 250],
+                lightColor: '#FF231F7C',
+            });
+        }
+
+        if (!Device.isDevice) {
+            console.log('[PushNotif] Must use physical device for push notifications.');
+            return undefined;
+        }
+
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;
         if (existingStatus !== 'granted') {
@@ -49,43 +78,43 @@ async function registerForPushNotificationsAsync() {
             finalStatus = status;
         }
         if (finalStatus !== 'granted') {
-            console.log('Failed to get push token for push notification!');
-            return;
+            console.log('[PushNotif] Permission not granted.');
+            return undefined;
         }
 
-        // Get the token that uniquely identifies this device
-        try {
-            const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
-            token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-            console.log("Push Token:", token);
-        } catch (e) {
-            console.error("Error getting push token:", e);
-        }
-    } else {
-        console.log('Must use physical device for Push Notifications');
+        const projectId =
+            Constants?.expoConfig?.extra?.eas?.projectId ??
+            (Constants as any)?.easConfig?.projectId;
+
+        const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+        console.log('[PushNotif] Token:', tokenData.data);
+        return tokenData.data;
+    } catch (e) {
+        // Swallow — push notifications are non-critical
+        console.warn('[PushNotif] Registration failed (non-fatal):', e);
+        return undefined;
     }
-
-    return token;
 }
+
+// ─── Provider ─────────────────────────────────────────────────────────────────
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [doctor, setDoctor] = useState<Doctor | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
+    // Check persisted session on mount
     useEffect(() => {
         const checkAuth = async () => {
             try {
                 const info = await getDoctorInfo();
                 if (info) {
                     setDoctor(info);
-                    // Register for push notifications if logged in
-                    const token = await registerForPushNotificationsAsync();
-                    if (token) {
-                        await registerPushToken(token);
-                    }
+                    // Best-effort push token registration
+                    const token = await tryRegisterForPushNotifications();
+                    if (token) await registerPushToken(token).catch(() => { });
                 }
             } catch (e) {
-                console.error(e);
+                console.error('[AuthContext] Session check failed:', e);
             } finally {
                 setIsLoading(false);
             }
@@ -93,16 +122,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         checkAuth();
     }, []);
 
+    // ── Login ──────────────────────────────────────────────────────────────────
+
     const login = async (email: string, pass: string) => {
         const doctorInfo = await doctorLogin(email, pass);
         setDoctor(doctorInfo);
 
-        // Register for push notifications on login
-        const token = await registerForPushNotificationsAsync();
-        if (token) {
-            await registerPushToken(token);
-        }
+        const token = await tryRegisterForPushNotifications();
+        if (token) await registerPushToken(token).catch(() => { });
     };
+
+    // ── Register ───────────────────────────────────────────────────────────────
+
+    const register = async (data: {
+        email: string;
+        password: string;
+        firstName: string;
+        lastName: string;
+        specialization?: string;
+        licenseNumber: string;
+    }) => {
+        const doctorInfo = await doctorRegister(data);
+        setDoctor(doctorInfo);
+
+        const token = await tryRegisterForPushNotifications();
+        if (token) await registerPushToken(token).catch(() => { });
+    };
+
+    // ── Logout ─────────────────────────────────────────────────────────────────
 
     const logout = async () => {
         await doctorLogout();
@@ -110,7 +157,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ doctor, isLoading, login, logout }}>
+        <AuthContext.Provider value={{ doctor, isLoading, login, register, logout }}>
             {children}
         </AuthContext.Provider>
     );

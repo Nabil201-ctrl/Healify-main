@@ -18,6 +18,7 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ChatProcessorService } from './services/chat-processor.service';
+import { DoctorService } from './services/doctor.service';
 import { IsString, IsOptional, IsNotEmpty, IsBoolean } from 'class-validator';
 
 class SendMessageDto {
@@ -48,6 +49,7 @@ class SendMessageDto {
 export class ChatController {
   constructor(
     private readonly chatProcessorService: ChatProcessorService,
+    private readonly doctorService: DoctorService,
   ) { }
 
   @Post('send')
@@ -249,6 +251,66 @@ export class ChatController {
         message: 'Failed to fetch bookmarks',
         error: error.message,
       };
+    }
+  }
+
+  // ─── Live Doctor Chat (User-side, JWT authenticated) ───────────────────────────
+
+  @Get('doctors')
+  @ApiOperation({ summary: 'Get list of available doctors' })
+  async getAvailableDoctors() {
+    try {
+      const doctors = await this.doctorService.getAvailableDoctors();
+      return { success: true, doctors };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  @Post('request-doctor')
+  @ApiOperation({ summary: 'Request a live chat with a specific doctor' })
+  async requestDoctor(
+    @Request() req: any,
+    @Body() body: { doctorId: string },
+  ) {
+    try {
+      const session = await this.doctorService.requestLiveChat(
+        req.user.userId,
+        body.doctorId,
+      );
+      return { success: true, session };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  @Get('live-session/:sessionId')
+  @ApiOperation({ summary: 'Poll live chat session status & messages' })
+  async pollLiveSession(
+    @Request() req: any,
+    @Param('sessionId') sessionId: string,
+  ) {
+    const result = await this.doctorService.getLiveChatSession(sessionId, req.user.userId);
+    if (!result) return { success: false, message: 'Session not found' };
+    return { success: true, ...result };
+  }
+
+  @Post('live-session/:sessionId/message')
+  @ApiOperation({ summary: 'Send a message in a live chat session' })
+  async sendLiveMessage(
+    @Request() req: any,
+    @Param('sessionId') sessionId: string,
+    @Body() body: { text: string },
+  ) {
+    try {
+      await this.doctorService.addUserMessageToLiveChat(
+        sessionId,
+        req.user.userId,
+        body.text,
+      );
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
     }
   }
 }

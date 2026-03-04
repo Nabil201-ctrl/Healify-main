@@ -311,6 +311,45 @@ export default function ProfileScreen() {
                         </>
                     )}
 
+                    {/* ── Integrations ─────────────────────────────────────── */}
+                    <SectionTitle color={colors.text}>Integrations</SectionTitle>
+                    <View style={[styles.card, { backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb', marginBottom: 20 }]}>
+                        <View style={[styles.infoRow, { justifyContent: 'space-between', borderBottomWidth: 0 }]}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <View style={[styles.iconCircle, { backgroundColor: '#10b98115' }]}>
+                                    <Ionicons name="fitness" size={18} color="#10b981" />
+                                </View>
+                                <View>
+                                    <Text style={[styles.rowLabel, { color: isDark ? '#9ca3af' : '#6b7280', marginBottom: 2 }]}>Google Fit / Health Connect</Text>
+                                    <Text style={[styles.rowValue, { color: isDark ? '#f9fafb' : '#111827', fontSize: 13 }]}>
+                                        {user.isHealthSyncAllowed ? 'Syncing actively' : 'Sync disabled'}
+                                    </Text>
+                                </View>
+                            </View>
+                            <TouchableOpacity
+                                onPress={async () => {
+                                    try {
+                                        const newState = !user.isHealthSyncAllowed;
+                                        await UserService.setHealthSync(newState);
+                                        setUser({ ...user, isHealthSyncAllowed: newState });
+                                    } catch (e) {
+                                        Alert.alert('Error', 'Could not update sync status');
+                                    }
+                                }}
+                                style={{
+                                    backgroundColor: user.isHealthSyncAllowed ? '#10b981' : isDark ? '#374151' : '#e5e7eb',
+                                    paddingHorizontal: 16,
+                                    paddingVertical: 8,
+                                    borderRadius: 20,
+                                }}
+                            >
+                                <Text style={{ color: user.isHealthSyncAllowed ? 'white' : isDark ? '#9ca3af' : '#6b7280', fontWeight: 'bold' }}>
+                                    {user.isHealthSyncAllowed ? 'Disconnect' : 'Connect'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
                     {/* ── Account ────────────────────────────────────────── */}
                     <SectionTitle color={colors.text}>Account</SectionTitle>
                     <View style={[styles.card, { backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb' }]}>

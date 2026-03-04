@@ -48,8 +48,16 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
     if (authState === 'authenticated' && inAuthGroup) {
       // User is signed in but landed on a login/register screen
-      console.log('[AuthGate] Already authenticated — redirecting to tabs');
-      router.replace('/(tabs)');
+      // Try to determine where they should go based on their profile completion
+      import('@/services/UserService').then(({ UserService }) => {
+        UserService.getProfile().then(profile => {
+          if (!profile.isProfileComplete) {
+            router.replace('/(onboarding)/onboarding');
+          } else {
+            router.replace('/(onboarding)/data-policy');
+          }
+        }).catch(() => router.replace('/(onboarding)/data-policy')); // Fallback
+      });
     }
   }, [authState, segments]);
 

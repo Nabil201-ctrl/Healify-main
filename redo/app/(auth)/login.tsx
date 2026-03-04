@@ -41,7 +41,7 @@ export default function LoginScreen() {
         try {
             setIsLoading(true);
             await AuthService.googleLogin(userInfo.token);
-            onAuthSuccess();
+            onAuthSuccess(); // AuthGate intercepts & handles routing
         } catch (error: any) {
             Alert.alert('Error', error.response?.data?.message || 'Google Login failed');
         } finally {

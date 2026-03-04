@@ -8,6 +8,7 @@ import { HeartRateChart } from '@/components/HeartRateChart';
 import { SleepChart } from '@/components/SleepChart';
 import ActivityChart from '@/components/ActivityChart';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { router } from 'expo-router';
 
@@ -216,6 +217,33 @@ export default function HomeScreen() {
           )}
         </View>
 
+        {/* Talk to Doctor Banner */}
+        <TouchableOpacity
+          activeOpacity={0.88}
+          onPress={() => router.push('/(tabs)/chat')}
+          style={[styles.doctorBanner, { overflow: 'hidden', marginBottom: 100 }]}
+        >
+          <LinearGradient
+            colors={isDark ? ['#022c22', '#064e3b'] : ['#ecfdf5', '#d1fae5']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.doctorBannerGradient}
+          >
+            <View style={[styles.doctorBannerIcon, { backgroundColor: isDark ? '#065f46' : '#a7f3d0' }]}>
+              <Text style={{ fontSize: 26 }}>👨‍⚕️</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <Text style={[styles.doctorBannerTitle, { color: isDark ? '#6ee7b7' : '#065f46' }]}>
+                Talk to a Doctor
+              </Text>
+              <Text style={[styles.doctorBannerSub, { color: isDark ? '#34d399' : '#059669' }]}>
+                Connect with a licensed physician now
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={isDark ? '#6ee7b7' : '#059669'} />
+          </LinearGradient>
+        </TouchableOpacity>
+
       </ScrollView>
     </View>
   );
@@ -332,5 +360,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'BricolageGrotesque',
     lineHeight: 20,
+  },
+  doctorBanner: {
+    borderRadius: 24,
+    marginBottom: 24,
+    overflow: 'hidden',
+  },
+  doctorBannerGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 24,
+  },
+  doctorBannerIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doctorBannerTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    fontFamily: 'BricolageGrotesque',
+  },
+  doctorBannerSub: {
+    fontSize: 12,
+    fontFamily: 'BricolageGrotesque',
+    marginTop: 3,
   },
 });

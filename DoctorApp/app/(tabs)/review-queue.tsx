@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getDoctorReviewQueue } from '../../services/DoctorAuthService';
 import { SessionCard } from '../../components/SessionCard';
 import { useAuth } from '../../context/DoctorAuthContext';
+import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
 
 export default function ReviewQueueScreen() {
@@ -39,7 +40,7 @@ export default function ReviewQueueScreen() {
                     }
                     ListEmptyComponent={
                         <View style={tw`flex-1 justify-center items-center py-20`}>
-                            <Text style={tw`text-4xl mb-4`}>✅</Text>
+                            <Ionicons name="checkmark-done-circle" size={64} color="#e5e7eb" style={tw`mb-4`} />
                             <Text style={tw`text-lg font-semibold text-gray-700`}>All Caught Up!</Text>
                             <Text style={tw`text-gray-500 mt-2`}>No sessions currently need review.</Text>
                         </View>

@@ -125,6 +125,9 @@ export class User {
   @Prop({ default: false })
   isProfileComplete: boolean;
 
+  @Prop({ default: false })
+  isHealthSyncAllowed: boolean;
+
   @Prop({
     type: String,
     enum: ['PENDING', 'PROFILE_SETUP', 'COMPLETED'],

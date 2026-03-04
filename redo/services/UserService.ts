@@ -48,6 +48,7 @@ export interface UserProfile {
     // Meta
     isProfileComplete?: boolean;
     onboardingStatus?: string;
+    isHealthSyncAllowed?: boolean;
 }
 
 export const UserService = {
@@ -80,7 +81,8 @@ export const UserService = {
                 'allergies', 'medications', 'averageSteps', 'activityLevel', 'jobType',
                 'daysLessActive', 'smokingStatus', 'alcoholUse', 'maritalStatus',
                 'hasChildren', 'numberOfChildren', 'emergencyContactName',
-                'emergencyContactPhone', 'location'
+                'emergencyContactPhone', 'location', 'isProfileComplete',
+                'onboardingStatus'
             ];
 
             const patchData: any = {};
@@ -139,6 +141,19 @@ export const UserService = {
             return response.data;
         } catch (error) {
             console.warn('Error setting location:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Toggle real-time health sync data
+     */
+    setHealthSync: async (allowed: boolean) => {
+        try {
+            const response = await api.patch('/users/health-sync', { allowed });
+            return response.data;
+        } catch (error) {
+            console.warn('Error setting health sync:', error);
             throw error;
         }
     }

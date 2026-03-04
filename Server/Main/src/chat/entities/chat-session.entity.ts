@@ -20,6 +20,7 @@ export class ChatSession {
             'needs_review',
             'under_review',
             'reviewed',
+            'live_chat',
         ],
         default: 'active',
     })
@@ -76,6 +77,27 @@ export class ChatSession {
 
     @Prop()
     doctorNotes: string;
+
+    // ─── Live Doctor Chat Fields ─────────────────────────────────────────────
+
+    @Prop({ type: Boolean, default: false, index: true })
+    isLiveChat: boolean;
+
+    /** The specific doctor the patient requested to talk to */
+    @Prop({ index: true })
+    requestedDoctorId: string;
+
+    @Prop({
+        type: String,
+        enum: ['waiting', 'connected', 'ended'],
+    })
+    liveChatStatus: string;
+
+    @Prop()
+    liveChatStartedAt: Date;
+
+    @Prop()
+    liveChatEndedAt: Date;
 }
 
 export const ChatSessionSchema = SchemaFactory.createForClass(ChatSession);

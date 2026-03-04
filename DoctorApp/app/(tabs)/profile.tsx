@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { useAuth } from '../../context/DoctorAuthContext';
+import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
 
 export default function ProfileScreen() {
@@ -10,7 +11,7 @@ export default function ProfileScreen() {
         <View style={tw`flex-1 bg-gray-50`}>
             <View style={tw`bg-white pt-12 pb-6 px-4 border-b border-gray-200 items-center`}>
                 <View style={tw`w-24 h-24 bg-blue-100 rounded-full items-center justify-center mb-4`}>
-                    <Text style={tw`text-4xl`}>👨‍⚕️</Text>
+                    <Ionicons name="medkit" size={48} color="#2563eb" />
                 </View>
                 <Text style={tw`text-2xl font-bold text-gray-900`}>
                     Dr. {doctor?.firstName} {doctor?.lastName}

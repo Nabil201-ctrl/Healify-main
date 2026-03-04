@@ -3,22 +3,34 @@ import { AuthProvider, useAuth } from '../context/DoctorAuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import * as Notifications from 'expo-notifications';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import Constants from 'expo-constants';
 
-Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-        shouldShowBanner: true,
-        shouldShowList: true,
-        priority: Notifications.AndroidNotificationPriority.MAX,
-    }),
-});
+// ─── Notification handler (dev build only, skip in Expo Go) ───────────────────
+
+const isExpoGo = Constants.appOwnership === 'expo';
+
+if (!isExpoGo) {
+    // Dynamically set up the notification handler only when not in Expo Go
+    import('expo-notifications').then((Notifications) => {
+        Notifications.setNotificationHandler({
+            handleNotification: async () => ({
+                shouldShowAlert: true,
+                shouldPlaySound: true,
+                shouldSetBadge: false,
+                shouldShowBanner: true,
+                shouldShowList: true,
+                priority: Notifications.AndroidNotificationPriority.MAX,
+            }),
+        });
+    }).catch(() => {
+        // Non-fatal — push notifications just won't show foreground alerts
+    });
+}
 
 const queryClient = new QueryClient();
+
+// ─── Root Nav ─────────────────────────────────────────────────────────────────
 
 function RootLayoutNav() {
     const { doctor, isLoading } = useAuth();
@@ -31,10 +43,8 @@ function RootLayoutNav() {
         const inAuthGroup = segments[0] === '(auth)';
 
         if (!doctor && !inAuthGroup) {
-            // Redirect to login if not authenticated
             router.replace('/(auth)/login');
         } else if (doctor && inAuthGroup) {
-            // Redirect to home if authenticated
             router.replace('/(tabs)/review-queue');
         }
     }, [doctor, segments, isLoading]);
@@ -49,12 +59,14 @@ function RootLayoutNav() {
                 options={{
                     headerShown: true,
                     title: 'Session Review',
-                    headerBackTitle: 'Queue'
+                    headerBackTitle: 'Queue',
                 }}
             />
         </Stack>
     );
 }
+
+// ─── Root Layout ──────────────────────────────────────────────────────────────
 
 export default function RootLayout() {
     return (

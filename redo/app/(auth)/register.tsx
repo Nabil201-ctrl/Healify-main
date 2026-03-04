@@ -31,8 +31,7 @@ export default function RegisterScreen() {
         setIsLoading(true);
         try {
             await AuthService.register(email, password, firstName, lastName);
-            onAuthSuccess(); // mark as authenticated before navigating to onboarding
-            router.replace('/(onboarding)/onboarding');
+            onAuthSuccess(); // AuthGate intercepts & redirects
         } catch (error: any) {
             Alert.alert('Error', error.response?.data?.message || 'Registration failed');
         } finally {
@@ -44,8 +43,7 @@ export default function RegisterScreen() {
         try {
             setIsLoading(true);
             await AuthService.googleLogin(userInfo.token);
-            onAuthSuccess();
-            router.replace('/(onboarding)/onboarding');
+            onAuthSuccess(); // AuthGate handles the destination automatically
         } catch (error: any) {
             Alert.alert('Error', error.response?.data?.message || 'Google Sign Up failed');
         } finally {

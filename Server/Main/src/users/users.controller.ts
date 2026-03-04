@@ -109,6 +109,32 @@ export class UsersController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Patch('health-sync')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Toggle real-time health data sync' })
+  @ApiResponse({ status: 200, description: 'Health sync preference saved' })
+  async setHealthSync(@Req() req: Request, @Body() body: { allowed: boolean }) {
+    const user = req.user as { userId: string };
+    const updated = await this.usersService.update(user.userId, {
+      isHealthSyncAllowed: body.allowed,
+    });
+
+    if (!body.allowed) {
+      await this.usersService.createNotification(
+        user.userId,
+        'GENERAL',
+        'Health Sync Disabled',
+        'You have not allowed daily syncing. Go to settings to allow.',
+      );
+    }
+
+    return {
+      success: true,
+      isHealthSyncAllowed: updated?.isHealthSyncAllowed,
+    };
+  }
+
   @Get('locations')
   @ApiOperation({ summary: 'Get supported locations' })
   getLocations() {

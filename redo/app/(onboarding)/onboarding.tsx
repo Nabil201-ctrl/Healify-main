@@ -155,7 +155,7 @@ export default function OnboardingScreen() {
                 isProfileComplete: true,
                 onboardingStatus: 'COMPLETED',
             });
-            router.replace('/(tabs)');
+            router.replace('/(onboarding)/data-policy');
         } catch (e) {
             Alert.alert('Error', 'Could not save your profile. Please try again.');
         } finally {
