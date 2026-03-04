@@ -60,6 +60,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        animation: 'fade',
         tabBarActiveTintColor: themeColors.tint,
         tabBarInactiveTintColor: isDark ? '#9ca3af' : '#6b7280',
         tabBarStyle: {

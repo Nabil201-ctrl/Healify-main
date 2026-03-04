@@ -57,7 +57,11 @@ export const UserService = {
     getProfile: async (): Promise<UserProfile> => {
         try {
             const response = await api.get('/users/me');
-            return response.data;
+            let data = response.data;
+            if (data && Array.isArray(data.medications)) {
+                data.medications = data.medications.map((med: any) => typeof med === 'string' ? { name: med } : med);
+            }
+            return data;
         } catch (error) {
             console.warn('Error fetching user profile:', error);
             throw error;
@@ -84,11 +88,25 @@ export const UserService = {
                 if (key in data && data[key as keyof UserProfile] !== undefined) {
                     let val = (data as any)[key];
                     if (key === 'medications' && Array.isArray(val)) {
-                        // strip internal IDs from medications to prevent ValidationPipe errors
-                        val = val.map((med: any) => {
-                            const { _id, id, __v, createdAt, updatedAt, ...cleanMed } = med;
-                            return cleanMed;
-                        });
+                        // Explicitly reconstruct each medication with ONLY the 4 allowed fields.
+                        // Never spread unknown keys — this is bulletproof against _id / numeric-index leakage.
+                        val = val
+                            .map((med: any): { name: string; reason?: string; dosage?: string; endDate?: string } | null => {
+                                if (typeof med === 'string' && med.trim()) {
+                                    return { name: med.trim() };
+                                }
+                                if (typeof med === 'object' && med !== null) {
+                                    const name = typeof med.name === 'string' ? med.name.trim() : '';
+                                    if (!name) return null; // skip entries with no name
+                                    const clean: { name: string; reason?: string; dosage?: string; endDate?: string } = { name };
+                                    if (typeof med.reason === 'string' && med.reason) clean.reason = med.reason;
+                                    if (typeof med.dosage === 'string' && med.dosage) clean.dosage = med.dosage;
+                                    if (typeof med.endDate === 'string' && med.endDate) clean.endDate = med.endDate;
+                                    return clean;
+                                }
+                                return null;
+                            })
+                            .filter(Boolean);
                     }
                     if (typeof val === 'number' && Number.isNaN(val)) {
                         continue;
@@ -99,6 +117,9 @@ export const UserService = {
                     patchData[key] = val;
                 }
             }
+
+            // Debug: log exact payload before sending
+            console.log('[updateProfile] Sending PATCH payload:', JSON.stringify(patchData, null, 2));
 
             // Send the patch payload
             const response = await api.patch('/users/me', patchData);

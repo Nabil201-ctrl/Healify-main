@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 
@@ -50,11 +51,14 @@ export function DashboardHeader({ userName, lastSyncTime, streak = 0, goal = 0, 
 
                 <TouchableOpacity
                     style={styles.notificationButton}
-                    activeOpacity={0.7}
+                    activeOpacity={0.75}
                     onPress={onNotificationPress}
                 >
-                    <Text style={styles.notificationIcon}>🔔</Text>
-                    <View style={styles.notificationBadge} />
+                    <Ionicons name="notifications" size={22} color="rgba(255,255,255,0.95)" />
+                    {/* Red badge dot */}
+                    <View style={styles.notificationBadge}>
+                        <View style={styles.notificationBadgeInner} />
+                    </View>
                 </TouchableOpacity>
             </View>
 
@@ -131,28 +135,36 @@ const styles = StyleSheet.create({
         fontFamily: 'BricolageGrotesque',
     },
     notificationButton: {
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+        width: 46,
+        height: 46,
+        borderRadius: 23,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
-    },
-    notificationIcon: {
-        fontSize: 20,
+        borderWidth: 1.5,
+        borderColor: 'rgba(255,255,255,0.25)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        elevation: 3,
     },
     notificationBadge: {
         position: 'absolute',
-        top: 10,
-        right: 12,
+        top: 7,
+        right: 7,
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: 'rgba(255,255,255,0.9)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    notificationBadgeInner: {
         width: 8,
         height: 8,
         borderRadius: 4,
         backgroundColor: '#ef4444',
-        borderWidth: 1,
-        borderColor: '#4f46e5',
     },
     statsRow: {
         flexDirection: 'row',

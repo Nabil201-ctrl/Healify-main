@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authEvents } from './authEvents';
 
-export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://healify-main.onrender.com';
+export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.178.105.13:3000';
 // All services (chat, health, notifications) now run on the single monolith URL above.
 // The old HEALTH_URL and CHAT_URL constants are no longer needed.
 

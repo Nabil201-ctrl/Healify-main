@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -29,6 +29,26 @@ export default function HealthMetricCard({
     const isDark = colorScheme === 'dark';
     const colors = Colors[colorScheme ?? 'light'];
 
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+
+    const handlePressIn = () => {
+        Animated.spring(scaleAnim, {
+            toValue: 0.93,
+            useNativeDriver: true,
+            speed: 40,
+            bounciness: 6,
+        }).start();
+    };
+
+    const handlePressOut = () => {
+        Animated.spring(scaleAnim, {
+            toValue: 1,
+            useNativeDriver: true,
+            speed: 20,
+            bounciness: 14,
+        }).start();
+    };
+
     const getTrendIcon = () => {
         switch (trend) {
             case 'up': return 'arrow-up';
@@ -39,7 +59,6 @@ export default function HealthMetricCard({
     };
 
     const getTrendColor = () => {
-        // We can use the accent color for the trend too, or standard semantic colors
         switch (trend) {
             case 'up': return colors.success;
             case 'down': return colors.error;
@@ -84,9 +103,17 @@ export default function HealthMetricCard({
 
     if (onPress) {
         return (
-            <TouchableOpacity style={styles.wrapper} onPress={onPress} activeOpacity={0.7}>
-                {cardContent}
-            </TouchableOpacity>
+            <Animated.View style={[styles.wrapper, { transform: [{ scale: scaleAnim }] }]}>
+                <TouchableOpacity
+                    style={{ flex: 1 }}
+                    onPress={onPress}
+                    onPressIn={handlePressIn}
+                    onPressOut={handlePressOut}
+                    activeOpacity={1}
+                >
+                    {cardContent}
+                </TouchableOpacity>
+            </Animated.View>
         );
     }
 
@@ -108,7 +135,6 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         height: 160,
         justifyContent: 'space-between',
-        // Subtle shadow
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
@@ -127,7 +153,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-
     trendBadge: {
         flexDirection: 'row',
         alignItems: 'center',
